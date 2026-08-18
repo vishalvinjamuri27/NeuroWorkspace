@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-const API_ORIGIN = "http://localhost:8100";
+const API_ORIGIN = process.env.PLAYWRIGHT_API_ORIGIN ?? "http://localhost:8100";
+const WEB_ORIGIN = process.env.PLAYWRIGHT_WEB_ORIGIN ?? "http://localhost:3100";
 
 test("landing page explains scope and offers both evaluation paths", async ({
   page,
@@ -163,11 +164,11 @@ test("workspace authorization hides another user's project", async ({
 }) => {
   const first = await playwright.request.newContext({
     baseURL: API_ORIGIN,
-    extraHTTPHeaders: { Origin: "http://localhost:3100" },
+    extraHTTPHeaders: { Origin: WEB_ORIGIN },
   });
   const second = await playwright.request.newContext({
     baseURL: API_ORIGIN,
-    extraHTTPHeaders: { Origin: "http://localhost:3100" },
+    extraHTTPHeaders: { Origin: WEB_ORIGIN },
   });
   try {
     await expect(

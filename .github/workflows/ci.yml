@@ -73,13 +73,148 @@ jobs:
       - run: pnpm --filter @neuroworkspace/web exec playwright install --with-deps chromium
       - run: pnpm test:e2e
 
-  containers:
+  compose:
     runs-on: ubuntu-latest
+    env:
+      COMPOSE_PROJECT_NAME: neuroworkspace-ci
+      COMPOSE_STATE: ${{ runner.temp }}/neuroworkspace-compose-state.json
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -f apps/api/Dockerfile -t neuroworkspace-api:test .
-      - run: docker build -f apps/worker/Dockerfile -t neuroworkspace-worker:test .
-      - run: docker build -f apps/web/Dockerfile -t neuroworkspace-web:test .
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.8.22"
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13.7"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "11.19.0"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.8.0"
+          cache: pnpm
+      - run: uv sync --frozen --extra dev
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @neuroworkspace/web exec playwright install --with-deps chromium
+      - name: Clean, build, and measure all images
+        run: |
+          docker --version
+          docker compose version
+          docker info
+          cp .env.example .env
+          docker compose down -v --remove-orphans
+          /usr/bin/time -f 'clean_build_seconds=%e' -o "$RUNNER_TEMP/compose-build-metrics.txt" \
+            docker compose build --no-cache
+          docker compose images > "$RUNNER_TEMP/compose-image-sizes.txt"
+      - name: Boot the empty stack and validate initialization
+        run: |
+          docker compose up -d
+          for attempt in $(seq 1 240); do
+            if curl --fail --silent http://localhost:8000/health/ready >/dev/null && \
+               curl --fail --silent http://localhost:3000 >/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          curl --fail --show-error http://localhost:8000/health/ready
+          curl --fail --silent http://localhost:3000 >/dev/null
+          test "$(docker inspect --format '{{.State.ExitCode}}' "$(docker compose ps -aq bootstrap)")" = 0
+          test "$(docker inspect --format '{{.State.Status}}' "$(docker compose ps -q worker)")" = running
+          docker compose ps --all
+          docker compose exec -T api alembic upgrade head
+          docker compose exec -T api alembic check
+          docker compose exec -T api python scripts/seed_public_sample.py
+          test "$(docker compose exec -T postgres psql -U neuroworkspace -d neuroworkspace -Atc \
+            "SELECT count(*) FROM alembic_version;")" = 1
+          test "$(docker compose exec -T postgres psql -U neuroworkspace -d neuroworkspace -Atc \
+            "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';")" -ge 20
+      - name: Real public EEG, object storage, and authorization
+        run: |
+          uv run python scripts/validate_compose_stack.py prepare --state "$COMPOSE_STATE"
+          version_id=$(jq -r .active_version_id "$COMPOSE_STATE")
+          docker compose exec -T api python -c \
+            'from pathlib import Path; import sys; raise SystemExit(not Path("/data/objects/canonical", sys.argv[1], "manifest.json").is_file())' \
+            "$version_id"
+      - name: Complete restart persistence
+        run: |
+          docker compose down
+          docker compose up -d
+          for attempt in $(seq 1 240); do
+            if curl --fail --silent http://localhost:8000/health/ready >/dev/null && \
+               curl --fail --silent http://localhost:3000 >/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          curl --fail --show-error http://localhost:8000/health/ready
+          curl --fail --silent http://localhost:3000 >/dev/null
+          uv run python scripts/validate_compose_stack.py verify-persistence --state "$COMPOSE_STATE"
+      - name: Worker stop, queue survival, restart, and load sanity
+        run: |
+          docker compose stop worker
+          test "$(docker inspect --format '{{.State.Status}}' "$(docker compose ps -aq worker)")" = exited
+          uv run python scripts/validate_compose_stack.py queue-job --state "$COMPOSE_STATE"
+          test "$(docker compose exec -T redis redis-cli LLEN ingestion)" -ge 1
+          docker compose start worker
+          uv run python scripts/validate_compose_stack.py finish-queued --state "$COMPOSE_STATE"
+          docker compose restart worker
+          test "$(docker inspect --format '{{.State.Status}}' "$(docker compose ps -q worker)")" = running
+      - name: Failed-job safety and deletion cleanup
+        run: |
+          uv run python scripts/validate_compose_stack.py cleanup --state "$COMPOSE_STATE"
+          recording_id=$(jq -r .disposable.recording_id "$COMPOSE_STATE")
+          upload_id=$(jq -r .disposable.upload_id "$COMPOSE_STATE")
+          for version_id in $(jq -r '.disposable | .active_version_id, .derived_version_id' "$COMPOSE_STATE"); do
+            docker compose exec -T api python -c \
+              'from pathlib import Path; import sys; raise SystemExit(Path("/data/objects/canonical", sys.argv[1]).exists())' \
+              "$version_id"
+          done
+          test "$(docker compose exec -T postgres psql -U neuroworkspace -d neuroworkspace -Atc \
+            "SELECT state FROM recordings WHERE id = '$recording_id';")" = DELETED
+          for table in source_assets recording_versions annotations bad_channels exports processing_runs; do
+            test "$(docker compose exec -T postgres psql -U neuroworkspace -d neuroworkspace -Atc \
+              "SELECT count(*) FROM $table WHERE recording_id = '$recording_id';")" = 0
+          done
+          test "$(docker compose exec -T postgres psql -U neuroworkspace -d neuroworkspace -Atc \
+            "SELECT count(*) FROM uploads WHERE id = '$upload_id';")" = 0
+      - name: Existing Chromium E2E against Compose
+        run: pnpm test:e2e
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+          PLAYWRIGHT_API_ORIGIN: http://localhost:8000
+          PLAYWRIGHT_WEB_ORIGIN: http://localhost:3000
+      - name: Final service state
+        run: |
+          docker compose ps --all
+          curl --fail --show-error http://localhost:8000/health/ready
+          curl --fail --silent http://localhost:3000 >/dev/null
+          test "$(docker inspect --format '{{.RestartCount}}' "$(docker compose ps -q api)")" = 0
+          test "$(docker inspect --format '{{.RestartCount}}' "$(docker compose ps -q web)")" = 0
+      - name: Collect Compose evidence
+        if: always()
+        run: |
+          docker compose ps --all > "$RUNNER_TEMP/compose-ps.txt" 2>&1 || true
+          docker compose logs --no-color > "$RUNNER_TEMP/compose-logs.txt" 2>&1 || true
+          if test -f "$COMPOSE_STATE"; then
+            jq 'del(.session_cookie)' "$COMPOSE_STATE" > "$RUNNER_TEMP/compose-state-redacted.json"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compose-validation-evidence
+          path: |
+            ${{ runner.temp }}/compose-build-metrics.txt
+            ${{ runner.temp }}/compose-image-sizes.txt
+            ${{ runner.temp }}/compose-ps.txt
+            ${{ runner.temp }}/compose-logs.txt
+            ${{ runner.temp }}/compose-state-redacted.json
+            apps/web/test-results
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Remove isolated validation volumes
+        if: always()
+        run: docker compose down -v --remove-orphans || true
 
   dependency-audit:
     runs-on: ubuntu-latest

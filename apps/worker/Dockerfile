@@ -10,7 +10,7 @@ COPY pyproject.toml uv.lock README.md ./
 COPY packages/signal-core packages/signal-core
 COPY apps/api apps/api
 COPY apps/worker apps/worker
-RUN uv sync --frozen --no-dev && \
+RUN uv sync --frozen --no-dev --no-cache && \
     addgroup --system neuroworkspace && \
     adduser --system --ingroup neuroworkspace --home /app neuroworkspace && \
     mkdir -p /data/objects && chown -R neuroworkspace:neuroworkspace /app /data

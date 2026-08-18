@@ -16,7 +16,7 @@ COPY scripts/fetch_test_data.py scripts/fetch_test_data.py
 COPY scripts/seed_public_sample.py scripts/seed_public_sample.py
 COPY scripts/seed_sample.py scripts/seed_sample.py
 COPY testdata/manifest.yaml testdata/manifest.yaml
-RUN uv sync --frozen --no-dev && \
+RUN uv sync --frozen --no-dev --no-cache && \
     addgroup --system neuroworkspace && \
     adduser --system --ingroup neuroworkspace --home /app neuroworkspace && \
     mkdir -p /data/objects && chown -R neuroworkspace:neuroworkspace /app /data
