@@ -243,7 +243,7 @@ procedure and is not silently inferred from this result.
 - Commit parity: **PASS**; both refs resolved to the same full commit hash after
   the final push. The exact resolved hash is included in the completion record;
   this report uses immutable ref names because it is itself part of that commit.
-- Secret scan: **PASS**. Gitleaks 8.30.1 scanned all 15 repository commits
+- Secret scan: **PASS**. Gitleaks 8.30.1 scanned all 16 repository commits
   with no leaks; a second detector found no verified secrets; manual current-tree
   and history checks found no credential patterns, private/raw EEG files, local
   database files, private-key material, or machine-specific user paths in Git.
