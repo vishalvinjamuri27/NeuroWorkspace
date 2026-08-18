@@ -106,7 +106,9 @@ jobs:
           docker compose down -v --remove-orphans
           /usr/bin/time -f 'clean_build_seconds=%e' -o "$RUNNER_TEMP/compose-build-metrics.txt" \
             docker compose build --no-cache
-          docker compose images > "$RUNNER_TEMP/compose-image-sizes.txt"
+          docker image ls --filter "reference=${COMPOSE_PROJECT_NAME}-*" \
+            --format 'table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}' \
+            > "$RUNNER_TEMP/compose-image-sizes.txt"
       - name: Boot the empty stack and validate initialization
         run: |
           docker compose up -d
