@@ -106,6 +106,13 @@ Final local run:
 - pnpm audit after upgrading Vitest to 3.2.6: no known vulnerabilities.
 - Docker image build/runtime: **BLOCKED — `docker` executable is absent**.
 
+A final clone of the committed repository into an empty temporary directory also
+passed locked Python/Node installation, migration from zero, schema drift check,
+lint, strict types, 16 fast Python tests, all 6 public-real-data tests (37.22 s),
+2 frontend unit tests, 2 isolated Chromium E2E tests (8.9 s), both deployable builds,
+and both dependency audits. The clean run found and fixed an E2E data-directory
+precondition before this report was finalized.
+
 The only test warnings are an upstream Starlette `TestClient` transition notice and
 the deliberately visible Sleep-EDF hypnogram warning described below.
 
