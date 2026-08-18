@@ -137,7 +137,9 @@ export default function HomePage() {
                     Math.sin(index * (0.8 + row * 0.08)) * (6 + row) +
                     Math.sin(index * 2.7) * 2 +
                     impulse;
-                  return `${index ? "L" : "M"}${x},${y}`;
+                  // Round values so Node prerendering and browser hydration emit
+                  // byte-identical SVG path data across math implementations.
+                  return `${index ? "L" : "M"}${x},${y.toFixed(3)}`;
                 }).join(" ")}
                 fill="none"
                 stroke={row === 3 ? "#de7d66" : "#3dd6bd"}

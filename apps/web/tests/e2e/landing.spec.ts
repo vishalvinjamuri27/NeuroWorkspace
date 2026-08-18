@@ -3,7 +3,12 @@ import { expect, test } from "@playwright/test";
 test("landing page explains scope and offers both evaluation paths", async ({
   page,
 }) => {
+  const consoleErrors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") consoleErrors.push(message.text());
+  });
   await page.goto("/");
+  await page.waitForLoadState("networkidle");
   await expect(
     page.getByRole("heading", { name: /Inspect neural signals/ }),
   ).toBeVisible();
@@ -14,6 +19,7 @@ test("landing page explains scope and offers both evaluation paths", async ({
     page.getByRole("link", { name: /Import a recording/ }),
   ).toBeVisible();
   await expect(page.getByText(/not a medical device/i)).toBeVisible();
+  expect(consoleErrors).toEqual([]);
 });
 
 test("CSV import supports review, annotation lifecycle, QC, and export", async ({

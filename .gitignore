@@ -16,9 +16,9 @@ test-results/
 playwright-report/
 node_modules/
 .next/
+apps/web/next-env.d.ts
 dist/
 build/
 *.tsbuildinfo
 testdata/downloads/
 docs/ALPHA_READINESS_REPORT.generated.md
-
