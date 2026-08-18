@@ -10,6 +10,23 @@ from neuro_api.main import create_app
 from neuro_workspace.config import Settings
 
 
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption(
+        "--real-data-root",
+        action="store",
+        default=None,
+        help="Directory containing checksum-verified public acceptance data",
+    )
+
+
+@pytest.fixture
+def real_data_root(request: pytest.FixtureRequest) -> Path:
+    configured = request.config.getoption("--real-data-root")
+    if not configured:
+        pytest.skip("--real-data-root was not provided")
+    return Path(str(configured)).resolve()
+
+
 @pytest.fixture
 def settings(tmp_path: Path) -> Settings:
     return Settings(

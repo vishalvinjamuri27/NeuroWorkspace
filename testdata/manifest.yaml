@@ -2,62 +2,114 @@ schema_version: 1
 cache_directory: .cache/neuro-workspace/testdata
 samples:
   sleep_edf_sc4001:
-    status: candidate
+    status: pinned
     dataset: Sleep-EDF Database Expanded 1.0.0
     files:
       - path: sleep-cassette/SC4001E0-PSG.edf
         url: https://physionet.org/files/sleep-edfx/1.0.0/sleep-cassette/SC4001E0-PSG.edf
         role: signal
         format: EDF+
-        approximate_size_bytes: 4833808
-        sha256: null
+        size_bytes: 48338048
+        sha256: 2b40a18adf76af69a42d6db1f30f31d26b369f6d27ca0050ef30147ef892b131
       - path: sleep-cassette/SC4001EC-Hypnogram.edf
         url: https://physionet.org/files/sleep-edfx/1.0.0/sleep-cassette/SC4001EC-Hypnogram.edf
         role: annotations
         format: EDF+
-        approximate_size_bytes: 4620
-        sha256: null
+        size_bytes: 4620
+        sha256: a4cf67694ade1b52a0ddd06d5817fd45d2d3e8bac5302f640f3e9cfbbf12a996
     source: https://physionet.org/content/sleep-edfx/1.0.0/
-    license_access_terms: PhysioNet Open Access; verify dataset license/citation at fetch time
+    license_access_terms: PhysioNet Open Access; ODC-BY 1.0 database license
     expected:
       channel_count: 7
       sampling_frequencies_hz: [1, 100]
-      duration_seconds: null
+      duration_seconds: 79500
+      minimum_annotation_count: 1
     purpose: Real EDF/EDF+ parsing, mixed rates, long windows, annotations, QC, viewer
   openneuro_ds006547_brainvision:
-    status: candidate
+    status: pinned
     dataset: OpenNeuro ds006547 Visual EEG Study
     source: https://openneuro.org/datasets/ds006547
-    snapshot: null
-    files: []
-    license_access_terms: Verify current OpenNeuro dataset license before download
-    expected: {}
+    snapshot: 1.0.0
+    doi: 10.18112/openneuro.ds006547.v1.0.0
+    files:
+      - path: openneuro-ds006547/sub-01_ses-01_task-visual_eeg.vhdr
+        url: https://s3.amazonaws.com/openneuro.org/ds006547/sub-01/ses-01/eeg/sub-01_ses-01_task-visual_eeg.vhdr
+        role: header
+        format: BrainVision
+        size_bytes: 3452
+        sha256: 5a60f91a267ed04a45df9e0dd71d83e702977bde2a232f9d7be117654551affb
+      - path: openneuro-ds006547/sub-01_ses-01_task-visual_eeg.vmrk
+        url: https://s3.amazonaws.com/openneuro.org/ds006547/sub-01/ses-01/eeg/sub-01_ses-01_task-visual_eeg.vmrk
+        role: marker
+        format: BrainVision
+        size_bytes: 15045
+        sha256: f036b8804afe029b6ef62771f000c7e05ffa2b58fafef5ecacadfa33d4e1cf45
+      - path: openneuro-ds006547/sub-01_ses-01_task-visual_eeg.eeg
+        url: https://s3.amazonaws.com/openneuro.org/ds006547/sub-01/ses-01/eeg/sub-01_ses-01_task-visual_eeg.eeg
+        role: data
+        format: BrainVision
+        size_bytes: 378048840
+        sha256: b4d67fe4541f664afe4bb39d48740823132af600fdda5957007b4dd9ba6363be
+    license_access_terms: CC0, as declared in dataset_description.json
+    expected:
+      channel_count: 67
+      sampling_frequency_hz: 500
+      sample_count: 1410630
+      annotation_count: 456
     purpose: Real BrainVision three-file grouping, markers, metadata, and BIDS
   openneuro_ds004362_eeglab:
-    status: candidate
+    status: pinned
     dataset: OpenNeuro ds004362 EEG Motor Movement/Imagery
     source: https://openneuro.org/datasets/ds004362
-    snapshot: null
-    files: []
-    license_access_terms: Verify current OpenNeuro dataset license before download
-    expected: {}
+    snapshot: 1.0.0
+    doi: 10.18112/openneuro.ds004362.v1.0.0
+    files:
+      - path: openneuro-ds004362/sub-001_task-motion_run-1_eeg.set
+        url: https://s3.amazonaws.com/openneuro.org/ds004362/sub-001/eeg/sub-001_task-motion_run-1_eeg.set
+        role: signal
+        format: EEGLAB
+        size_bytes: 3215672
+        sha256: affd2c020dab82aa2bd38363fc6f813fbb7239c54bccd7b70c35a23bd75b71b7
+    license_access_terms: CC0, as declared in dataset_description.json
+    expected:
+      channel_count: 64
+      sampling_frequency_hz: 160
+      sample_count: 9760
+      annotation_count: 1
     purpose: Real EEGLAB embedded or external FDT relationship and events
   public_biosemi_bdf:
-    status: candidate
-    dataset: To be verified; investigate OpenNeuro ds002578 or official MNE test data
-    source: https://openneuro.org/datasets/ds002578
-    snapshot: null
-    files: []
-    license_access_terms: Must be openly downloadable and verified before use
-    expected: {}
-    purpose: Independent real BioSemi BDF, status channel, metadata, windows, QC
+    status: pinned
+    dataset: HBN-EEG EEG Foundation Challenge R1 mini BDF
+    source: https://eeg2025.github.io/data/
+    snapshot: R1_mini_L100_bdf observed 2026-08-18
+    files:
+      - path: hbn-bdf/sub-NDARAC904DMU_task-DiaryOfAWimpyKid_eeg.bdf
+        url: https://nmdatasets.s3.amazonaws.com/NeurIPS25/R1_mini_L100_bdf/sub-NDARAC904DMU/eeg/sub-NDARAC904DMU_task-DiaryOfAWimpyKid_eeg.bdf
+        role: signal
+        format: BioSemi BDF
+        size_bytes: 4730030
+        sha256: dd714436de85002cc7284fd624f8f7bb8e6260bb55718c88d8f313cd5e5d367a
+    license_access_terms: HBN releases are CC-BY-SA-4.0; challenge data are filtered and downsampled derivatives
+    expected:
+      channel_count: 129
+      sampling_frequency_hz: 100
+      sample_count: 12100
+    purpose: Independent public BDF bytes, 24-bit decoding, metadata, windows, and QC
   mne_official_fif:
-    status: candidate
-    dataset: Official MNE sample or testing data
-    source: https://mne.tools/stable/documentation/datasets.html
-    snapshot: null
-    files: []
-    license_access_terms: Verify MNE dataset terms and upstream checksum before use
-    expected: {}
+    status: pinned
+    dataset: Official MNE testing-data truncated auditory/visual recording
+    source: https://github.com/mne-tools/mne-testing-data
+    snapshot: 33ef2a6f6345a1adf8764f8f63725f0ed9e4bb92
+    files:
+      - path: mne-testing-data/sample_audvis_trunc_raw.fif
+        url: https://raw.githubusercontent.com/mne-tools/mne-testing-data/33ef2a6f6345a1adf8764f8f63725f0ed9e4bb92/MEG/sample/sample_audvis_trunc_raw.fif
+        role: signal
+        format: FIF
+        size_bytes: 12036840
+        sha256: d1ecdebf1ae23d9e7a5b56be63f45191778440cce6c8dfb0c270e75484b2aa50
+    license_access_terms: MNE testing artifact; do not redistribute from this repository
+    expected:
+      channel_count: 376
+      sampling_frequency_hz: 300.3074951171875
+      sample_count: 6007
     purpose: Independently produced FIF lazy reading, metadata, windows, annotations
-

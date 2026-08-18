@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import configparser
 import re
+import tempfile
 from collections.abc import Iterator, Sequence
+from dataclasses import replace
 from pathlib import Path
 from typing import ClassVar
 
@@ -57,6 +59,43 @@ def _find_extension(assets: Sequence[Path], extensions: tuple[str, ...]) -> Path
             f"Expected exactly one primary file with extension {names}.",
         )
     return matches[0]
+
+
+def _edf_source_sampling_rates(path: Path) -> tuple[float, ...]:
+    """Read per-signal rates from the public EDF/BDF fixed header."""
+
+    with path.open("rb") as stream:
+        fixed = stream.read(256)
+        try:
+            channel_count = int(fixed[252:256].decode("ascii").strip())
+            record_duration = float(fixed[244:252].decode("ascii").strip())
+        except (UnicodeDecodeError, ValueError) as exc:
+            raise ValidationError("malformed_header", "The EDF/BDF header is malformed.") from exc
+        if channel_count <= 0 or record_duration <= 0:
+            raise ValidationError("malformed_header", "The EDF/BDF timebase is invalid.")
+        signal_header = stream.read(channel_count * 256)
+    labels = tuple(
+        signal_header[index * 16 : (index + 1) * 16]
+        .decode("ascii", errors="replace")
+        .strip()
+        for index in range(channel_count)
+    )
+    samples_offset = channel_count * (16 + 80 + 8 + 8 + 8 + 8 + 8 + 80)
+    raw_counts = signal_header[samples_offset : samples_offset + channel_count * 8]
+    try:
+        samples_per_record = tuple(
+            int(raw_counts[index * 8 : (index + 1) * 8].decode("ascii").strip())
+            for index in range(channel_count)
+        )
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise ValidationError(
+            "malformed_header", "The EDF/BDF signal header is malformed."
+        ) from exc
+    return tuple(
+        count / record_duration
+        for label, count in zip(labels, samples_per_record, strict=True)
+        if "annotations" not in label.casefold()
+    )
 
 
 class MNEAdapter:
@@ -185,8 +224,84 @@ class EDFAdapter(MNEAdapter):
     def _magic_matches(self, header: bytes) -> bool:
         return header[:8].strip() in {b"0", b""} and len(header) >= 8
 
+    def primary_path(self, assets: Sequence[Path]) -> Path:
+        matches = [path for path in _safe_paths(assets) if path.suffix.lower() == ".edf"]
+        if len(matches) == 1:
+            return matches[0]
+        if len(matches) > 1:
+            ordered = sorted(matches, key=lambda path: path.stat().st_size, reverse=True)
+            if ordered[0].stat().st_size > ordered[1].stat().st_size * 2:
+                return ordered[0]
+        raise ValidationError(
+            "ambiguous_primary_file",
+            "Choose one signal EDF; optional annotation EDF files must be substantially smaller.",
+        )
+
+    def _attach_companion_annotations(
+        self, raw: mne.io.BaseRaw, assets: Sequence[Path], primary: Path
+    ) -> None:
+        for companion in assets:
+            if companion != primary and companion.suffix.lower() == ".edf":
+                annotations = mne.read_annotations(companion)
+                raw.set_annotations(raw.annotations + annotations)
+
     def _open(self, assets: Sequence[Path]) -> mne.io.BaseRaw:
-        return mne.io.read_raw_edf(self.primary_path(assets), preload=False, verbose="ERROR")
+        paths = _safe_paths(assets)
+        primary = self.primary_path(paths)
+        raw = mne.io.read_raw_edf(primary, preload=False, verbose="ERROR")
+        self._attach_companion_annotations(raw, paths, primary)
+        return raw
+
+    def iter_signal_chunks(
+        self,
+        assets: Sequence[Path],
+        chunk_samples: int,
+        config: ImportConfig = None,
+    ) -> Iterator[SignalChunk]:
+        """Stream from a disk-backed preload so mixed-rate EDF is resampled once.
+
+        MNE warns that reading independent lazy slices from mixed-rate EDF can
+        introduce edge artifacts at every slice boundary. A temporary memmap
+        keeps memory bounded while making chunk boundaries scientifically safe.
+        """
+
+        del config
+        if chunk_samples <= 0:
+            raise ValueError("chunk_samples must be positive")
+        paths = _safe_paths(assets)
+        primary = self.primary_path(paths)
+        with tempfile.TemporaryDirectory(prefix="neuro-workspace-edf-") as directory:
+            preload_path = str(Path(directory) / "signals.dat")
+            raw = mne.io.read_raw_edf(
+                primary, preload=preload_path, verbose="ERROR"
+            )
+            try:
+                self._attach_companion_annotations(raw, paths, primary)
+                for start in range(0, int(raw.n_times), chunk_samples):
+                    stop = min(start + chunk_samples, int(raw.n_times))
+                    yield SignalChunk(
+                        start,
+                        np.asarray(raw.get_data(start=start, stop=stop), dtype=np.float32),
+                    )
+            finally:
+                raw.close()
+
+    def inspect_metadata(
+        self, assets: Sequence[Path], config: ImportConfig = None
+    ) -> RecordingMetadata:
+        metadata = super().inspect_metadata(assets, config)
+        rates = _edf_source_sampling_rates(self.primary_path(assets))
+        if len(rates) != len(metadata.channels):
+            raise ValidationError(
+                "malformed_header", "EDF channel metadata does not match the signal header."
+            )
+        return replace(
+            metadata,
+            channels=tuple(
+                replace(channel, source_sampling_frequency_hz=rates[index])
+                for index, channel in enumerate(metadata.channels)
+            ),
+        )
 
 
 class BDFAdapter(MNEAdapter):
@@ -198,6 +313,47 @@ class BDFAdapter(MNEAdapter):
 
     def _open(self, assets: Sequence[Path]) -> mne.io.BaseRaw:
         return mne.io.read_raw_bdf(self.primary_path(assets), preload=False, verbose="ERROR")
+
+    def iter_signal_chunks(
+        self,
+        assets: Sequence[Path],
+        chunk_samples: int,
+        config: ImportConfig = None,
+    ) -> Iterator[SignalChunk]:
+        del config
+        if chunk_samples <= 0:
+            raise ValueError("chunk_samples must be positive")
+        with tempfile.TemporaryDirectory(prefix="neuro-workspace-bdf-") as directory:
+            preload_path = str(Path(directory) / "signals.dat")
+            raw = mne.io.read_raw_bdf(
+                self.primary_path(assets), preload=preload_path, verbose="ERROR"
+            )
+            try:
+                for start in range(0, int(raw.n_times), chunk_samples):
+                    stop = min(start + chunk_samples, int(raw.n_times))
+                    yield SignalChunk(
+                        start,
+                        np.asarray(raw.get_data(start=start, stop=stop), dtype=np.float32),
+                    )
+            finally:
+                raw.close()
+
+    def inspect_metadata(
+        self, assets: Sequence[Path], config: ImportConfig = None
+    ) -> RecordingMetadata:
+        metadata = super().inspect_metadata(assets, config)
+        rates = _edf_source_sampling_rates(self.primary_path(assets))
+        if len(rates) != len(metadata.channels):
+            raise ValidationError(
+                "malformed_header", "BDF channel metadata does not match the signal header."
+            )
+        return replace(
+            metadata,
+            channels=tuple(
+                replace(channel, source_sampling_frequency_hz=rates[index])
+                for index, channel in enumerate(metadata.channels)
+            ),
+        )
 
 
 class FIFAdapter(MNEAdapter):
