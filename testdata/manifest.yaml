@@ -1,0 +1,63 @@
+schema_version: 1
+cache_directory: .cache/neuro-workspace/testdata
+samples:
+  sleep_edf_sc4001:
+    status: candidate
+    dataset: Sleep-EDF Database Expanded 1.0.0
+    files:
+      - path: sleep-cassette/SC4001E0-PSG.edf
+        url: https://physionet.org/files/sleep-edfx/1.0.0/sleep-cassette/SC4001E0-PSG.edf
+        role: signal
+        format: EDF+
+        approximate_size_bytes: 4833808
+        sha256: null
+      - path: sleep-cassette/SC4001EC-Hypnogram.edf
+        url: https://physionet.org/files/sleep-edfx/1.0.0/sleep-cassette/SC4001EC-Hypnogram.edf
+        role: annotations
+        format: EDF+
+        approximate_size_bytes: 4620
+        sha256: null
+    source: https://physionet.org/content/sleep-edfx/1.0.0/
+    license_access_terms: PhysioNet Open Access; verify dataset license/citation at fetch time
+    expected:
+      channel_count: 7
+      sampling_frequencies_hz: [1, 100]
+      duration_seconds: null
+    purpose: Real EDF/EDF+ parsing, mixed rates, long windows, annotations, QC, viewer
+  openneuro_ds006547_brainvision:
+    status: candidate
+    dataset: OpenNeuro ds006547 Visual EEG Study
+    source: https://openneuro.org/datasets/ds006547
+    snapshot: null
+    files: []
+    license_access_terms: Verify current OpenNeuro dataset license before download
+    expected: {}
+    purpose: Real BrainVision three-file grouping, markers, metadata, and BIDS
+  openneuro_ds004362_eeglab:
+    status: candidate
+    dataset: OpenNeuro ds004362 EEG Motor Movement/Imagery
+    source: https://openneuro.org/datasets/ds004362
+    snapshot: null
+    files: []
+    license_access_terms: Verify current OpenNeuro dataset license before download
+    expected: {}
+    purpose: Real EEGLAB embedded or external FDT relationship and events
+  public_biosemi_bdf:
+    status: candidate
+    dataset: To be verified; investigate OpenNeuro ds002578 or official MNE test data
+    source: https://openneuro.org/datasets/ds002578
+    snapshot: null
+    files: []
+    license_access_terms: Must be openly downloadable and verified before use
+    expected: {}
+    purpose: Independent real BioSemi BDF, status channel, metadata, windows, QC
+  mne_official_fif:
+    status: candidate
+    dataset: Official MNE sample or testing data
+    source: https://mne.tools/stable/documentation/datasets.html
+    snapshot: null
+    files: []
+    license_access_terms: Verify MNE dataset terms and upstream checksum before use
+    expected: {}
+    purpose: Independently produced FIF lazy reading, metadata, windows, annotations
+
