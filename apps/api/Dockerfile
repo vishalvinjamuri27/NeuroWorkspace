@@ -19,7 +19,8 @@ COPY testdata/manifest.yaml testdata/manifest.yaml
 RUN uv sync --frozen --no-dev --no-cache && \
     addgroup --system neuroworkspace && \
     adduser --system --ingroup neuroworkspace --home /app neuroworkspace && \
-    mkdir -p /data/objects && chown -R neuroworkspace:neuroworkspace /app /data
+    mkdir -p /data/objects/canonical && \
+    chown -R neuroworkspace:neuroworkspace /app /data
 USER neuroworkspace
 EXPOSE 8000
 CMD ["uvicorn", "neuro_api.main:app", "--host", "0.0.0.0", "--port", "8000"]

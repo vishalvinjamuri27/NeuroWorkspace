@@ -13,6 +13,7 @@ COPY apps/worker apps/worker
 RUN uv sync --frozen --no-dev --no-cache && \
     addgroup --system neuroworkspace && \
     adduser --system --ingroup neuroworkspace --home /app neuroworkspace && \
-    mkdir -p /data/objects && chown -R neuroworkspace:neuroworkspace /app /data
+    mkdir -p /data/objects/canonical && \
+    chown -R neuroworkspace:neuroworkspace /app /data
 USER neuroworkspace
 CMD ["celery", "-A", "neuro_worker.celery_app:celery_app", "worker", "--loglevel=INFO", "--queues=ingestion,processing,maintenance"]
