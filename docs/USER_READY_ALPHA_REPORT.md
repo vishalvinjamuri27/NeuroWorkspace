@@ -19,19 +19,22 @@ what to build next.
 All locally executable release gates passed, including a fresh checkout. Docker was
 not installed, so image execution, Compose startup, and service-restart persistence
 remain explicitly **BLOCKED / NOT RUN** and are mandatory deployment gates before
-public invitations. No hosted deployment, remote tag, release, repository remote,
-outreach, or user/adoption claim was created.
+public invitations. A private GitHub source repository was created for backup and
+collaboration; no hosted deployment, remote tag, GitHub Release, package/container
+publication, outreach, public announcement, or user/adoption claim was created.
 
 ## What changed since `796e85b`
 
-Four local commits organize the phase:
+Five local commits organize the implementation and acceptance phase before the
+publication-preparation commit:
 
 - `6e82044`: user-ready alpha validation plan;
 - `a899cf7`: live first-user audit and prioritized findings;
 - `c436373`: sample/auth/workspace, product evidence, feedback, errors, and E2E
   implementation;
 - `2c35573`: product-first distribution docs/media, release metadata,
-  performance/security evidence, and deploy bootstrap separation.
+  performance/security evidence, and deploy bootstrap separation;
+- `53b85ad`: final user-ready alpha acceptance record.
 
 No major feature category, new biosignal modality/format, ML/AI, live streaming,
 diagnostic behavior, Kubernetes, mobile app, or enterprise collaboration was added.
@@ -227,6 +230,29 @@ Persistence inside the local deployment is evidenced by workspace reopen after
 ingestion. Full service-stop/restart persistence is part of the blocked container
 procedure and is not silently inferred from this result.
 
+## GitHub Publication
+
+- Repository name: `NeuroWorkspace` (`vishalvinjamuri27/NeuroWorkspace`).
+- Repository owner: `vishalvinjamuri27`.
+- Privacy status: **PRIVATE**, verified through GitHub metadata before and after
+  the push.
+- Remote configured: `origin` for fetch and push at the private GitHub repository.
+- Branch pushed: `main`; GitHub reports `main` as the default branch.
+- Final local commit: `refs/heads/main` at publication verification.
+- Final remote commit: `refs/remotes/origin/main` at publication verification.
+- Commit parity: **PASS**; both refs resolved to the same full commit hash after
+  the final push. The exact resolved hash is included in the completion record;
+  this report uses immutable ref names because it is itself part of that commit.
+- Secret scan: **PASS**. Gitleaks 8.30.1 scanned all 15 repository commits
+  with no leaks; a second detector found no verified secrets; manual current-tree
+  and history checks found no credential patterns, private/raw EEG files, local
+  database files, private-key material, or machine-specific user paths in Git.
+- Working-tree status: clean after the final commit and push.
+- Publication status: **PASS — private source control, backup, and
+  collaboration-ready GitHub state only**.
+- Release status: no GitHub Release, package, container image, public repository,
+  public announcement, or community submission was created.
+
 ## Known blockers
 
 Before sending a hosted URL to strangers, the operator must:
@@ -294,8 +320,11 @@ high-value requests normally enter the near-term roadmap.
 2. Follow `PUBLIC_ALPHA_DEPLOYMENT.md` and do not invite anyone until every
    blocked container/restart and live-storage/auth check passes. Record the result;
    do not ask for more features.
-3. Put the final HTTPS sample URL and public repository URL into the deployment and
-   verify the screenshot/readme links from a signed-out browser.
+3. Put the final HTTPS sample URL into the deployment and keep
+   `NEXT_PUBLIC_REPOSITORY_URL` empty while the repository is private. Share the
+   private repository only with approved collaborators. Add a public repository
+   URL only after a separate explicit publication decision, then verify the
+   screenshot/README links from a signed-out browser.
 4. Personally recruit **five named, opt-in EEG practitioners** across at least
    three target segments using warm introductions or community channels that allow
    tool feedback. Book five separate 20–30 minute sessions within two weeks.
