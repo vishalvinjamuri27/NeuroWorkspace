@@ -57,6 +57,7 @@ from neuro_workspace.db.models import (
 from neuro_workspace.domain import Capability, JobKind, RecordingState
 from neuro_workspace.errors import ConflictError, ForbiddenError, ValidationError
 from neuro_workspace.exports import export_annotations_csv, export_provenance_json
+from neuro_workspace.product_analytics import track_product_event
 from neuro_workspace.services.access import (
     ensure_user,
     job_for_user,
@@ -284,6 +285,13 @@ def create_annotation(
         description=body.description.strip(),
     )
     session.add(annotation)
+    track_product_event(
+        session,
+        "annotation_created",
+        actor_id=user.id,
+        workspace_id=recording.workspace_id,
+        recording_id=recording.id,
+    )
     session.commit()
     return AnnotationResponse.model_validate(annotation)
 
@@ -314,6 +322,13 @@ def update_annotation(
     annotation.description = body.description.strip()
     annotation.updater_id = user.id
     annotation.revision += 1
+    track_product_event(
+        session,
+        "annotation_updated",
+        actor_id=user.id,
+        workspace_id=recording.workspace_id,
+        recording_id=recording.id,
+    )
     session.commit()
     return AnnotationResponse.model_validate(annotation)
 
@@ -330,7 +345,7 @@ def delete_annotation(
     annotation = session.get(Annotation, annotation_id)
     if annotation is None or annotation.deleted_at is not None:
         raise ForbiddenError()
-    recording_for_user(session, user.id, annotation.recording_id, Capability.ANNOTATE)
+    recording = recording_for_user(session, user.id, annotation.recording_id, Capability.ANNOTATE)
     if annotation.revision != body.revision:
         raise ConflictError(
             "annotation_revision_conflict", "This annotation changed. Reload before deleting it."
@@ -338,6 +353,13 @@ def delete_annotation(
     annotation.deleted_at = datetime.now(UTC)
     annotation.updater_id = user.id
     annotation.revision += 1
+    track_product_event(
+        session,
+        "annotation_deleted",
+        actor_id=user.id,
+        workspace_id=recording.workspace_id,
+        recording_id=recording.id,
+    )
     session.commit()
 
 
@@ -379,6 +401,14 @@ def set_bad_channel(
     row.state = body.state
     row.reason = body.reason.strip()
     row.actor_id = user.id
+    if body.state == "confirmed_bad":
+        track_product_event(
+            session,
+            "bad_channel_marked",
+            actor_id=user.id,
+            workspace_id=recording.workspace_id,
+            recording_id=recording.id,
+        )
     session.commit()
     return BadChannelResponse.model_validate(row)
 
@@ -471,6 +501,14 @@ def create_processing_run(
         parameters=body.parameters,
     )
     session.add(run)
+    track_product_event(
+        session,
+        "processing_run_created",
+        actor_id=user.id,
+        workspace_id=recording.workspace_id,
+        recording_id=recording.id,
+        properties={"operation_id": body.operation_id},
+    )
     session.commit()
     _dispatch_processing(background, runtime, job.id)
     return ProcessingRunResponse.model_validate(run)
@@ -513,82 +551,116 @@ def create_export(
     )
     session.add(export)
     session.flush()
+    track_product_event(
+        session,
+        "export_started",
+        actor_id=user.id,
+        workspace_id=recording.workspace_id,
+        recording_id=recording.id,
+        properties={"format": body.format_id},
+    )
+    session.commit()
     suffix = "csv" if body.format_id == "annotations_csv" else "json"
     key = f"exports/{recording.id}/{export.id}.{suffix}"
-    with tempfile.TemporaryDirectory(prefix="nw-export-") as temp_name:
-        path = Path(temp_name) / f"export.{suffix}"
-        if body.format_id == "annotations_csv":
-            annotations = session.scalars(
-                select(Annotation).where(
-                    Annotation.recording_id == recording.id, Annotation.deleted_at.is_(None)
+    try:
+        with tempfile.TemporaryDirectory(prefix="nw-export-") as temp_name:
+            path = Path(temp_name) / f"export.{suffix}"
+            if body.format_id == "annotations_csv":
+                annotations = session.scalars(
+                    select(Annotation).where(
+                        Annotation.recording_id == recording.id,
+                        Annotation.deleted_at.is_(None),
+                    )
+                ).all()
+                export_annotations_csv(
+                    (
+                        {
+                            "id": item.id,
+                            "onset_seconds": item.onset_seconds,
+                            "duration_seconds": item.duration_seconds,
+                            "label": item.label,
+                            "description": item.description,
+                            "creator_id": item.creator_id,
+                            "revision": item.revision,
+                        }
+                        for item in annotations
+                    ),
+                    path,
                 )
-            ).all()
-            export_annotations_csv(
-                (
-                    {
-                        "id": item.id,
-                        "onset_seconds": item.onset_seconds,
-                        "duration_seconds": item.duration_seconds,
-                        "label": item.label,
-                        "description": item.description,
-                        "creator_id": item.creator_id,
-                        "revision": item.revision,
-                    }
-                    for item in annotations
-                ),
-                path,
-            )
-        elif body.format_id == "provenance_json":
-            versions = session.scalars(
-                select(RecordingVersion).where(RecordingVersion.recording_id == recording.id)
-            ).all()
-            runs = session.scalars(
-                select(ProcessingRun).where(ProcessingRun.recording_id == recording.id)
-            ).all()
-            export_provenance_json(
-                recording={
-                    "id": recording.id,
-                    "name": recording.name,
-                    "format_id": recording.format_id,
-                    "source_provenance": recording.source_provenance,
-                },
-                versions=[
-                    {
-                        "id": version.id,
-                        "parent_version_id": version.parent_version_id,
-                        "kind": version.kind,
-                        "manifest_sha256": version.manifest_sha256,
-                        "sampling_frequency_hz": version.sampling_frequency_hz,
-                        "sample_count": version.sample_count,
-                        "software": version.software,
-                    }
-                    for version in versions
-                ],
-                processing_runs=[
-                    {
-                        "id": run.id,
-                        "input_version_id": run.input_version_id,
-                        "output_version_id": run.output_version_id,
-                        "operation_id": run.operation_id,
-                        "operation_version": run.operation_version,
-                        "parameters": run.parameters,
-                    }
-                    for run in runs
-                ],
-                destination=path,
-            )
-        else:
-            qc = get_qc(
-                recording.id,
-                Identity(user.external_subject, user.email, user.display_name),
-                session,
-            )
-            path.write_text(json.dumps(qc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        info = runtime.object_store.put_file(key, path)
+            elif body.format_id == "provenance_json":
+                versions = session.scalars(
+                    select(RecordingVersion).where(RecordingVersion.recording_id == recording.id)
+                ).all()
+                runs = session.scalars(
+                    select(ProcessingRun).where(ProcessingRun.recording_id == recording.id)
+                ).all()
+                export_provenance_json(
+                    recording={
+                        "id": recording.id,
+                        "name": recording.name,
+                        "format_id": recording.format_id,
+                        "source_provenance": recording.source_provenance,
+                    },
+                    versions=[
+                        {
+                            "id": version.id,
+                            "parent_version_id": version.parent_version_id,
+                            "kind": version.kind,
+                            "manifest_sha256": version.manifest_sha256,
+                            "sampling_frequency_hz": version.sampling_frequency_hz,
+                            "sample_count": version.sample_count,
+                            "software": version.software,
+                        }
+                        for version in versions
+                    ],
+                    processing_runs=[
+                        {
+                            "id": run.id,
+                            "input_version_id": run.input_version_id,
+                            "output_version_id": run.output_version_id,
+                            "operation_id": run.operation_id,
+                            "operation_version": run.operation_version,
+                            "parameters": run.parameters,
+                        }
+                        for run in runs
+                    ],
+                    destination=path,
+                )
+            else:
+                qc = get_qc(
+                    recording.id,
+                    Identity(user.external_subject, user.email, user.display_name),
+                    session,
+                )
+                path.write_text(json.dumps(qc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            info = runtime.object_store.put_file(key, path)
+    except BaseException as exc:
+        session.rollback()
+        failed_export = session.get(Export, export.id)
+        if failed_export is not None:
+            failed_export.status = "FAILED"
+        track_product_event(
+            session,
+            "export_failed",
+            actor_id=user.id,
+            workspace_id=recording.workspace_id,
+            recording_id=recording.id,
+            properties={"format": body.format_id, "failure_class": type(exc).__name__},
+        )
+        session.commit()
+        raise
     export.status = "READY"
     export.object_key = key
     export.size_bytes = info.size_bytes
     export.sha256 = info.sha256
+    track_product_event(
+        session,
+        "export_completed",
+        actor_id=user.id,
+        workspace_id=recording.workspace_id,
+        recording_id=recording.id,
+        properties={"format": body.format_id},
+    )
     session.commit()
     return ExportResponse.model_validate(export)
 

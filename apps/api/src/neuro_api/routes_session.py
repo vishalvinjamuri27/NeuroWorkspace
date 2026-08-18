@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
+import secrets
 import uuid
+from base64 import urlsafe_b64encode
+from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, Response
+import httpx
+from fastapi import APIRouter, Depends, Request, Response
+from fastapi.responses import RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import ColumnElement
@@ -37,9 +43,162 @@ from neuro_workspace.db.models import (
 )
 from neuro_workspace.domain import Capability, RecordingState, Role
 from neuro_workspace.errors import NeuroError
-from neuro_workspace.services.access import require_access
+from neuro_workspace.product_analytics import track_product_event
+from neuro_workspace.services.access import ensure_user, require_access
 
 router = APIRouter()
+
+
+@router.get("/session/config")
+def session_config(runtime: Runtime = Depends(get_runtime)) -> dict[str, str | bool]:
+    return {
+        "dev_auth_enabled": runtime.settings.dev_auth_enabled
+        and runtime.settings.environment != "production",
+        "oidc_configured": runtime.oidc is not None and bool(runtime.settings.oidc_client_id),
+        "oidc_login_url": (f"{runtime.settings.api_public_url.rstrip('/')}/api/session/oidc/login"),
+        "build_version": runtime.settings.build_version,
+    }
+
+
+def _oidc_configuration(runtime: Runtime) -> dict[str, str]:
+    if runtime.oidc is None or not runtime.settings.oidc_issuer:
+        raise NeuroError("oidc_not_configured", "Hosted sign-in is not configured.", 503)
+    try:
+        response = httpx.get(
+            f"{runtime.settings.oidc_issuer.rstrip('/')}/.well-known/openid-configuration",
+            timeout=10,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        issuer = str(payload["issuer"]).rstrip("/")
+        if issuer != runtime.settings.oidc_issuer.rstrip("/"):
+            raise ValueError("issuer mismatch")
+        authorization_endpoint = str(payload["authorization_endpoint"])
+        token_endpoint = str(payload["token_endpoint"])
+        if runtime.settings.environment == "production" and (
+            not authorization_endpoint.startswith("https://")
+            or not token_endpoint.startswith("https://")
+        ):
+            raise ValueError("insecure endpoint")
+        return {
+            "authorization_endpoint": authorization_endpoint,
+            "token_endpoint": token_endpoint,
+        }
+    except (httpx.HTTPError, KeyError, TypeError, ValueError) as exc:
+        raise NeuroError(
+            "oidc_discovery_failed", "Hosted sign-in is temporarily unavailable.", 503
+        ) from exc
+
+
+@router.get("/session/oidc/login")
+def begin_oidc_session(
+    request: Request,
+    return_to: str = "/workspace",
+    runtime: Runtime = Depends(get_runtime),
+) -> RedirectResponse:
+    if not return_to.startswith("/") or return_to.startswith("//"):
+        raise NeuroError("invalid_return_path", "Choose a valid application return path.", 422)
+    client_id = runtime.settings.oidc_client_id
+    if not client_id:
+        raise NeuroError("oidc_not_configured", "Hosted sign-in is not configured.", 503)
+    configuration = _oidc_configuration(runtime)
+    state = secrets.token_urlsafe(32)
+    nonce = secrets.token_urlsafe(32)
+    verifier = secrets.token_urlsafe(64)
+    challenge = urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
+    redirect_uri = f"{runtime.settings.api_public_url.rstrip('/')}/api/session/oidc/callback"
+    cookie = runtime.login_state_signer.dumps(
+        {
+            "state": state,
+            "nonce": nonce,
+            "verifier": verifier,
+            "return_to": return_to,
+        }
+    )
+    query = urlencode(
+        {
+            "response_type": "code",
+            "client_id": client_id,
+            "redirect_uri": redirect_uri,
+            "scope": "openid email profile",
+            "state": state,
+            "nonce": nonce,
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
+        }
+    )
+    response = RedirectResponse(
+        f"{configuration['authorization_endpoint']}?{query}", status_code=302
+    )
+    response.set_cookie(
+        "nw_oidc_state",
+        cookie,
+        httponly=True,
+        secure=runtime.settings.environment in {"staging", "production"},
+        samesite="lax",
+        max_age=600,
+        path="/api/session/oidc",
+    )
+    return response
+
+
+@router.get("/session/oidc/callback")
+def complete_oidc_session(
+    request: Request,
+    code: str,
+    state: str,
+    runtime: Runtime = Depends(get_runtime),
+    session: Session = Depends(get_db),
+) -> RedirectResponse:
+    state_cookie = request.cookies.get("nw_oidc_state")
+    if not state_cookie or runtime.oidc is None or not runtime.settings.oidc_client_id:
+        raise NeuroError("invalid_login_state", "Start sign-in again to continue.", 401)
+    login = runtime.login_state_signer.loads(state_cookie)
+    if not secrets.compare_digest(str(login.get("state", "")), state):
+        raise NeuroError("invalid_login_state", "Start sign-in again to continue.", 401)
+    configuration = _oidc_configuration(runtime)
+    redirect_uri = f"{runtime.settings.api_public_url.rstrip('/')}/api/session/oidc/callback"
+    token_request = {
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": redirect_uri,
+        "client_id": runtime.settings.oidc_client_id,
+        "code_verifier": str(login["verifier"]),
+    }
+    if runtime.settings.oidc_client_secret:
+        token_request["client_secret"] = runtime.settings.oidc_client_secret.get_secret_value()
+    try:
+        token_response = httpx.post(configuration["token_endpoint"], data=token_request, timeout=10)
+        token_response.raise_for_status()
+        id_token = str(token_response.json()["id_token"])
+    except (httpx.HTTPError, KeyError, TypeError, ValueError) as exc:
+        raise NeuroError(
+            "oidc_exchange_failed", "Sign-in could not be completed. Try again.", 401
+        ) from exc
+    identity = runtime.oidc.verify(id_token, nonce=str(login["nonce"]))
+    existing = session.scalar(select(User.id).where(User.external_subject == identity.subject))
+    user = ensure_user(
+        session,
+        subject=identity.subject,
+        email=identity.email,
+        display_name=identity.display_name,
+    )
+    if existing is None:
+        track_product_event(session, "signup_completed", actor_id=user.id)
+    session.commit()
+    target = f"{runtime.settings.web_public_url.rstrip('/')}{login['return_to']}"
+    response = RedirectResponse(target, status_code=302)
+    response.delete_cookie("nw_oidc_state", path="/api/session/oidc")
+    response.set_cookie(
+        runtime.settings.session_cookie_name,
+        runtime.signer.dumps(identity),
+        httponly=True,
+        secure=runtime.settings.environment in {"staging", "production"},
+        samesite="lax",
+        max_age=runtime.settings.session_ttl_seconds,
+        path="/",
+    )
+    return response
 
 
 def _slug(name: str) -> str:
@@ -61,14 +220,15 @@ def create_dev_session(
         email=body.email.casefold(),
         display_name=body.display_name,
     )
-    from neuro_workspace.services.access import ensure_user
-
+    existing = session.scalar(select(User.id).where(User.external_subject == identity.subject))
     user = ensure_user(
         session,
         subject=identity.subject,
         email=identity.email,
         display_name=identity.display_name,
     )
+    if existing is None:
+        track_product_event(session, "signup_completed", actor_id=user.id)
     session.commit()
     response.set_cookie(
         runtime.settings.session_cookie_name,
@@ -127,6 +287,12 @@ def create_workspace(
     session.add(workspace)
     session.flush()
     session.add(Membership(workspace_id=workspace.id, user_id=user.id, role=Role.OWNER))
+    track_product_event(
+        session,
+        "workspace_created",
+        actor_id=user.id,
+        workspace_id=workspace.id,
+    )
     session.commit()
     return WorkspaceResponse(
         id=workspace.id,
@@ -164,6 +330,13 @@ def create_project(
         workspace_id=workspace_id, name=body.name.strip(), description=body.description.strip()
     )
     session.add(project)
+    session.flush()
+    track_product_event(
+        session,
+        "project_created",
+        actor_id=user.id,
+        workspace_id=workspace_id,
+    )
     session.commit()
     return ProjectResponse.model_validate(project)
 

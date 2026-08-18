@@ -18,7 +18,8 @@ import {
   useState,
 } from "react";
 
-import { api, formatDuration } from "../../lib/api";
+import { FeedbackButton } from "../FeedbackButton";
+import { APIError, api, formatDuration } from "../../lib/api";
 import { ChannelSidebar } from "./ChannelSidebar";
 import { Inspector } from "./Inspector";
 import { WaveformCanvas } from "./WaveformCanvas";
@@ -66,6 +67,9 @@ export function ViewerShell({ recordingId }: { recordingId: string }) {
   const [viewerWidth, setViewerWidth] = useState(1200);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [errorReference, setErrorReference] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
+  const [showSampleGuide, setShowSampleGuide] = useState(true);
   const [jumpValue, setJumpValue] = useState("0");
   const viewerRef = useRef<HTMLDivElement>(null);
 
@@ -102,21 +106,25 @@ export function ViewerShell({ recordingId }: { recordingId: string }) {
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      api.recording(recordingId),
-      api.channels(recordingId),
-      api.events(recordingId),
-      api.annotations(recordingId),
-      api.qc(recordingId),
-    ])
-      .then(
-        ([
-          nextRecording,
-          nextChannels,
-          nextEvents,
-          nextAnnotations,
-          nextQc,
-        ]) => {
+    async function load() {
+      setLoading(true);
+      setError("");
+      setErrorReference(null);
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          const [
+            nextRecording,
+            nextChannels,
+            nextEvents,
+            nextAnnotations,
+            nextQc,
+          ] = await Promise.all([
+            api.recording(recordingId),
+            api.channels(recordingId),
+            api.events(recordingId),
+            api.annotations(recordingId),
+            api.qc(recordingId),
+          ]);
           if (!active) return;
           setRecording(nextRecording);
           setChannels(nextChannels);
@@ -132,22 +140,39 @@ export function ViewerShell({ recordingId }: { recordingId: string }) {
           );
           setEditable(!nextRecording.is_demo);
           setLoading(false);
-        },
-      )
-      .catch((caught: unknown) => {
-        if (active) {
+          void api
+            .track(
+              nextRecording.is_demo
+                ? "sample_recording_opened"
+                : "recording_opened",
+              nextRecording.id,
+            )
+            .catch(() => undefined);
+          return;
+        } catch (caught) {
+          if (attempt === 0) {
+            await new Promise((resolve) => window.setTimeout(resolve, 250));
+            continue;
+          }
+          if (!active) return;
           setError(
             caught instanceof Error
               ? caught.message
               : "The recording could not be opened.",
           );
+          setErrorReference(
+            caught instanceof APIError ? caught.reference : null,
+          );
           setLoading(false);
         }
-      });
+      }
+    }
+    const timer = window.setTimeout(() => void load(), 0);
     return () => {
       active = false;
+      window.clearTimeout(timer);
     };
-  }, [recordingId]);
+  }, [recordingId, retryKey]);
 
   useEffect(() => {
     if (!recording || !selectedIndices.length) return;
@@ -192,8 +217,9 @@ export function ViewerShell({ recordingId }: { recordingId: string }) {
       );
       setStart(bounded);
       setJumpValue(bounded.toFixed(2));
+      void api.track("viewer_panned", recordingId).catch(() => undefined);
     },
-    [duration, totalDuration],
+    [duration, recordingId, totalDuration],
   );
 
   const zoom = useCallback(
@@ -213,8 +239,9 @@ export function ViewerShell({ recordingId }: { recordingId: string }) {
       setDuration(nextDuration);
       setStart(nextStart);
       setJumpValue(nextStart.toFixed(2));
+      void api.track("viewer_zoomed", recordingId).catch(() => undefined);
     },
-    [duration, start, totalDuration],
+    [duration, recordingId, start, totalDuration],
   );
 
   useEffect(() => {
@@ -379,20 +406,35 @@ export function ViewerShell({ recordingId }: { recordingId: string }) {
       <main className="viewer-loading">
         <h1>Recording unavailable</h1>
         <p>{error}</p>
-        <Link className="button primary" href="/">
-          Return home
-        </Link>
+        {errorReference && (
+          <p className="error-reference">Error reference: {errorReference}</p>
+        )}
+        <div className="button-row">
+          <button
+            className="button primary"
+            onClick={() => setRetryKey((value) => value + 1)}
+          >
+            Try again
+          </button>
+          <Link className="button ghost" href="/">
+            Return home
+          </Link>
+        </div>
+        <FeedbackButton recordingId={recordingId} />
       </main>
     );
 
   return (
     <main className="viewer-shell">
       <header className="app-header viewer-header">
-        <Link href="/" className="brand compact">
+        <Link
+          href={recording.is_demo ? "/" : "/workspace"}
+          className="brand compact"
+        >
           <span className="brand-mark">NW</span>
         </Link>
         <div className="breadcrumb">
-          <span>Public sample</span>
+          <span>{recording.is_demo ? "Demo sample" : "My workspace"}</span>
           <i>/</i>
           <strong>{recording.name}</strong>
         </div>
@@ -437,6 +479,36 @@ export function ViewerShell({ recordingId }: { recordingId: string }) {
           </div>
         </dl>
       </section>
+
+      {recording.is_demo && showSampleGuide && (
+        <aside className="sample-guide" aria-label="Sample recording guide">
+          <div>
+            <p className="section-kicker">One-minute sample</p>
+            <strong>
+              {recording.source_provenance.kind === "synthetic"
+                ? "Explore a generated EEG-like recording with no human data."
+                : "Explore attributed public EEG research data without adding it to your workspace."}
+            </strong>
+            <p>
+              Use + / − to zoom, arrows to pan, uncheck a channel, then open QC
+              review and Metadata below. The shared demo is read-only; its
+              example events show where source markers and annotations appear.
+            </p>
+            <small>
+              {String(
+                metadata.attribution ??
+                  "Deterministically generated by NeuroWorkspace.",
+              )}
+            </small>
+          </div>
+          <button
+            onClick={() => setShowSampleGuide(false)}
+            aria-label="Dismiss sample guide"
+          >
+            ×
+          </button>
+        </aside>
+      )}
 
       <section className="viewer-toolbar" aria-label="Waveform controls">
         <div className="control-group">
@@ -553,7 +625,10 @@ export function ViewerShell({ recordingId }: { recordingId: string }) {
 
       {error && (
         <div className="viewer-error" role="alert">
-          <span>{error}</span>
+          <span>
+            {error}
+            {errorReference ? ` Reference ${errorReference}.` : ""}
+          </span>
           <button onClick={() => setError("")} aria-label="Dismiss error">
             ×
           </button>
@@ -566,7 +641,12 @@ export function ViewerShell({ recordingId }: { recordingId: string }) {
           flaggedChannelIds={flaggedChannelIds}
           badChannelIds={badChannelIds}
           editable={editable}
-          onVisible={setVisible}
+          onVisible={(next) => {
+            setVisible(next);
+            void api
+              .track("channel_visibility_changed", recordingId)
+              .catch(() => undefined);
+          }}
           onBad={toggleBad}
         />
         <div className="waveform-panel" ref={viewerRef}>
@@ -608,6 +688,9 @@ export function ViewerShell({ recordingId }: { recordingId: string }) {
         editable={editable}
         onEditAnnotation={beginEditAnnotation}
         onDeleteAnnotation={(annotation) => void deleteAnnotation(annotation)}
+        onQcOpen={() => {
+          void api.track("qc_opened", recordingId).catch(() => undefined);
+        }}
       />
       <footer className="viewer-footer">
         <span>Cursor {cursor === null ? "—" : formatDuration(cursor)}</span>
@@ -727,6 +810,10 @@ export function ViewerShell({ recordingId }: { recordingId: string }) {
           </form>
         </div>
       )}
+      <FeedbackButton
+        workspaceId={recording.is_demo ? null : recording.workspace_id}
+        recordingId={recording.id}
+      />
     </main>
   );
 }

@@ -12,18 +12,20 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
+from sqlalchemy import select, text
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.responses import Response
 
+from neuro_api.routes_product import router as product_router
 from neuro_api.routes_recordings import router as recordings_router
 from neuro_api.routes_session import router as session_router
 from neuro_api.routes_uploads import router as uploads_router
 from neuro_api.runtime import Runtime
-from neuro_workspace.auth import OIDCVerifier, SessionSigner
+from neuro_workspace.auth import LoginStateSigner, OIDCVerifier, SessionSigner
 from neuro_workspace.config import Settings, get_settings
-from neuro_workspace.db.models import Base
+from neuro_workspace.db.models import Base, Recording
 from neuro_workspace.db.session import create_engine_and_factory
+from neuro_workspace.domain import RecordingState
 from neuro_workspace.errors import NeuroError
 from neuro_workspace.signal_store import LocalZarrSignalStore
 from neuro_workspace.storage import create_object_store
@@ -69,6 +71,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             signer=SessionSigner(
                 selected.session_secret.get_secret_value(), selected.session_ttl_seconds
             ),
+            login_state_signer=LoginStateSigner(selected.session_secret.get_secret_value()),
             oidc=oidc,
         )
         yield
@@ -165,11 +168,33 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         runtime: Runtime = request.app.state.runtime
         with runtime.engine.connect() as connection:
             connection.execute(text("SELECT 1"))
+        if runtime.settings.require_demo_ready:
+            with runtime.session_factory() as session:
+                demo = session.scalar(
+                    select(Recording)
+                    .where(
+                        Recording.is_demo.is_(True),
+                        Recording.state == RecordingState.READY,
+                        Recording.deleted_at.is_(None),
+                    )
+                    .order_by(Recording.created_at)
+                )
+                if (
+                    demo is None
+                    or demo.active_version_id is None
+                    or not runtime.signal_store.version_path(demo.active_version_id).exists()
+                ):
+                    raise NeuroError(
+                        "demo_not_ready",
+                        "The deployment sample has not passed its readiness check.",
+                        503,
+                    )
         return {"status": "ready", "build": runtime.settings.build_version}
 
     app.include_router(session_router, prefix="/api", tags=["identity and workspaces"])
     app.include_router(uploads_router, prefix="/api", tags=["uploads"])
     app.include_router(recordings_router, prefix="/api", tags=["recordings"])
+    app.include_router(product_router, prefix="/api", tags=["product evidence"])
     return app
 
 

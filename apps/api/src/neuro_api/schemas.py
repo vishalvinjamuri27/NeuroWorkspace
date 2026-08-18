@@ -29,6 +29,89 @@ class SessionResponse(BaseModel):
     user: UserResponse
 
 
+ClientProductEventName = Literal[
+    "sample_demo_started",
+    "sample_recording_opened",
+    "recording_opened",
+    "viewer_zoomed",
+    "viewer_panned",
+    "channel_visibility_changed",
+    "qc_opened",
+]
+
+
+class ProductEventCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: ClientProductEventName
+    session_id: str = Field(min_length=8, max_length=64)
+    recording_id: str | None = Field(default=None, max_length=36)
+
+
+FeedbackCategory = Literal[
+    "bug",
+    "confusing_workflow",
+    "missing_feature",
+    "file_import_issue",
+    "performance_issue",
+    "other",
+]
+
+
+class FeedbackCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    category: FeedbackCategory
+    message: str = Field(min_length=3, max_length=4000)
+    route: str = Field(default="/", min_length=1, max_length=300)
+    workspace_id: str | None = Field(default=None, max_length=36)
+    recording_id: str | None = Field(default=None, max_length=36)
+    may_contact: bool = False
+    contact_email: str | None = Field(default=None, max_length=320)
+
+    @field_validator("route")
+    @classmethod
+    def route_must_be_local(cls, value: str) -> str:
+        if not value.startswith("/") or value.startswith("//"):
+            raise ValueError("route must be an application path")
+        return value
+
+    @field_validator("contact_email")
+    @classmethod
+    def normalize_contact(cls, value: str | None) -> str | None:
+        return value.strip().casefold() if value else None
+
+
+class FeedbackResponse(ORMModel):
+    id: str
+    category: str
+    status: str
+    created_at: datetime
+
+
+class FeedbackAdminResponse(FeedbackResponse):
+    message: str
+    route: str
+    actor_id: str | None
+    workspace_id: str | None
+    recording_id: str | None
+    app_version: str
+    may_contact: bool
+    contact_email: str | None
+
+
+class ProductMetricsResponse(BaseModel):
+    event_counts: dict[str, int]
+    unique_users: dict[str, int]
+    activation_rate: float | None
+    upload_activation_rate: float | None
+    annotation_usage_rate: float | None
+    return_behavior_rate: float | None
+    multi_recording_rate: float | None
+    format_counts: dict[str, int]
+    size_bucket_counts: dict[str, int]
+
+
 class WorkspaceCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
 
@@ -278,6 +361,7 @@ class JobResponse(ORMModel):
     stage: str
     error_code: str | None
     error_message: str | None
+    diagnostic_id: str | None
     created_at: datetime
     updated_at: datetime
 

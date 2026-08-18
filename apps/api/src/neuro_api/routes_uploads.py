@@ -22,6 +22,7 @@ from neuro_workspace.adapters.registry import default_registry
 from neuro_workspace.db.models import Job, Recording, SourceAsset, Upload, User
 from neuro_workspace.domain import Capability, JobKind, RecordingState
 from neuro_workspace.errors import ConflictError, ForbiddenError, ValidationError
+from neuro_workspace.product_analytics import format_category, size_bucket, track_product_event
 from neuro_workspace.services.access import project_for_user
 from neuro_workspace.services.jobs import execute_ingestion_job
 
@@ -61,16 +62,33 @@ def create_upload(
     runtime: Runtime = Depends(get_runtime),
 ) -> UploadResponse:
     project = project_for_user(session, user.id, project_id, Capability.CREATE)
-    if len(body.assets) > runtime.settings.max_upload_files:
-        raise ValidationError("too_many_files", "The upload contains too many files.")
     total = sum(asset.size_bytes for asset in body.assets)
-    if total > runtime.settings.max_upload_bytes:
-        raise ValidationError("too_large", "The upload exceeds the workspace size limit.")
-    if body.format_hint == "csv" and body.csv_config is None:
-        raise ValidationError("csv_config_required", "Configure the delimited text import first.")
-    names = [_safe_filename(asset.name) for asset in body.assets]
-    if len({name.casefold() for name in names}) != len(names):
-        raise ValidationError("duplicate_filename", "Upload filenames must be unique.")
+    try:
+        if len(body.assets) > runtime.settings.max_upload_files:
+            raise ValidationError("too_many_files", "The upload contains too many files.")
+        if total > runtime.settings.max_upload_bytes:
+            raise ValidationError("too_large", "The upload exceeds the workspace size limit.")
+        if body.format_hint == "csv" and body.csv_config is None:
+            raise ValidationError(
+                "csv_config_required", "Configure the delimited text import first."
+            )
+        names = [_safe_filename(asset.name) for asset in body.assets]
+        if len({name.casefold() for name in names}) != len(names):
+            raise ValidationError("duplicate_filename", "Upload filenames must be unique.")
+    except ValidationError as exc:
+        track_product_event(
+            session,
+            "upload_failed",
+            actor_id=user.id,
+            workspace_id=project.workspace_id,
+            properties={
+                "format": format_category(body.format_hint),
+                "size_bucket": size_bucket(total),
+                "failure_class": exc.code,
+            },
+        )
+        session.commit()
+        raise
 
     upload = Upload(
         workspace_id=project.workspace_id,
@@ -88,6 +106,16 @@ def create_upload(
     }
     session.add(upload)
     session.flush()
+    track_product_event(
+        session,
+        "upload_started",
+        actor_id=user.id,
+        workspace_id=project.workspace_id,
+        properties={
+            "format": format_category(body.format_hint),
+            "size_bucket": size_bucket(total),
+        },
+    )
     responses: list[UploadAssetResponse] = []
     for request_asset, safe_name in zip(body.assets, names, strict=True):
         asset_id = str(uuid.uuid4())
@@ -155,6 +183,18 @@ def upload_local_content(
     )
     if info.size_bytes != asset.size_bytes:
         runtime.object_store.delete_prefix(asset.object_key)
+        track_product_event(
+            session,
+            "upload_failed",
+            actor_id=user.id,
+            workspace_id=upload.workspace_id,
+            properties={
+                "format": format_category(upload.format_hint),
+                "size_bucket": size_bucket(upload.total_bytes),
+                "failure_class": "size_mismatch",
+            },
+        )
+        session.commit()
         raise ValidationError(
             "size_mismatch",
             f"The uploaded size for {asset.safe_name} does not match its declaration.",
@@ -182,6 +222,18 @@ def complete_upload(
     if runtime.settings.object_store_backend == "local" and any(
         asset.sha256 is None for asset in assets
     ):
+        track_product_event(
+            session,
+            "upload_failed",
+            actor_id=user.id,
+            workspace_id=upload.workspace_id,
+            properties={
+                "format": format_category(upload.format_hint),
+                "size_bucket": size_bucket(upload.total_bytes),
+                "failure_class": "upload_incomplete",
+            },
+        )
+        session.commit()
         raise ValidationError(
             "upload_incomplete", "Upload every file before completing the upload."
         )
@@ -210,6 +262,17 @@ def complete_upload(
     )
     session.add(job)
     upload.status = "COMPLETED"
+    track_product_event(
+        session,
+        "upload_completed",
+        actor_id=user.id,
+        workspace_id=recording.workspace_id,
+        recording_id=recording.id,
+        properties={
+            "format": format_category(upload.format_hint),
+            "size_bucket": size_bucket(upload.total_bytes),
+        },
+    )
     session.commit()
     _dispatch_ingestion(background, runtime, job.id)
     return UploadCompleteResponse(

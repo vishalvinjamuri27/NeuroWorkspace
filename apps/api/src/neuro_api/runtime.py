@@ -10,7 +10,7 @@ from fastapi import Cookie, Depends, Header, Request
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from neuro_workspace.auth import Identity, OIDCVerifier, SessionSigner
+from neuro_workspace.auth import Identity, LoginStateSigner, OIDCVerifier, SessionSigner
 from neuro_workspace.config import Settings
 from neuro_workspace.db.models import User
 from neuro_workspace.errors import NeuroError
@@ -27,6 +27,7 @@ class Runtime:
     object_store: ObjectStore
     signal_store: LocalZarrSignalStore
     signer: SessionSigner
+    login_state_signer: LoginStateSigner
     oidc: OIDCVerifier | None
 
 

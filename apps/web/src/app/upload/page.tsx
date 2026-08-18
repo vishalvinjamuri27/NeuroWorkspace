@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
+import { FeedbackButton } from "../../components/FeedbackButton";
 import { APIError, api } from "../../lib/api";
 
 const FORMATS = [
@@ -49,6 +50,42 @@ export default function UploadPage() {
   const [progress, setProgress] = useState(0);
   const [stage, setStage] = useState("");
   const [error, setError] = useState("");
+  const [errorReference, setErrorReference] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
+    null,
+  );
+  const [sessionConfig, setSessionConfig] = useState<Awaited<
+    ReturnType<typeof api.sessionConfig>
+  > | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    async function initialize() {
+      try {
+        const config = await api.sessionConfig();
+        if (!active) return;
+        setSessionConfig(config);
+        const projectId = new URLSearchParams(window.location.search).get(
+          "project_id",
+        );
+        setSelectedProjectId(projectId);
+        await api.session();
+        if (active) setPhase("files");
+      } catch (caught) {
+        if (!(caught instanceof APIError && caught.status === 401)) {
+          setError(
+            caught instanceof Error
+              ? caught.message
+              : "Account status could not be loaded.",
+          );
+        }
+      }
+    }
+    void initialize();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const totalSize = useMemo(
     () => files.reduce((sum, file) => sum + file.size, 0),
@@ -82,10 +119,15 @@ export default function UploadPage() {
 
   async function startUpload() {
     setError("");
+    setErrorReference(null);
     setPhase("uploading");
     try {
-      const workspace = await api.createWorkspace(workspaceName);
-      const project = await api.createProject(workspace.id, projectName);
+      let projectId = selectedProjectId;
+      if (!projectId) {
+        const workspace = await api.createWorkspace(workspaceName);
+        const project = await api.createProject(workspace.id, projectName);
+        projectId = project.id;
+      }
       const columns = csvList(channelColumns);
       const payload = {
         recording_name: recordingName,
@@ -113,7 +155,7 @@ export default function UploadPage() {
               }
             : null,
       };
-      const upload = await api.initiateUpload(project.id, payload);
+      const upload = await api.initiateUpload(projectId, payload);
       for (let index = 0; index < files.length; index += 1) {
         setStage(`Uploading ${files[index].name}`);
         await api.uploadAsset(
@@ -134,8 +176,10 @@ export default function UploadPage() {
           router.push(`/recordings/${completion.recording_id}`);
           return;
         }
-        if (job.status === "FAILED")
+        if (job.status === "FAILED") {
+          setErrorReference(job.diagnostic_id ?? job.id);
           throw new Error(job.error_message ?? "Ingestion failed.");
+        }
         await new Promise((resolve) => window.setTimeout(resolve, 1000));
       }
       throw new Error(
@@ -143,6 +187,7 @@ export default function UploadPage() {
       );
     } catch (caught) {
       setPhase("error");
+      if (caught instanceof APIError) setErrorReference(caught.reference);
       setError(
         caught instanceof APIError || caught instanceof Error
           ? caught.message
@@ -204,61 +249,100 @@ export default function UploadPage() {
         </aside>
 
         <section className="import-card">
-          {phase === "account" && (
-            <form onSubmit={establishWorkspace}>
-              <p className="section-kicker">Step 1 of 5</p>
-              <h2>Development sign-in</h2>
-              <p className="muted">
-                The local build uses a signed development session. Production
-                deployments require OIDC.
-              </p>
-              <div className="form-grid two">
-                <label>
-                  Display name
-                  <input
-                    value={displayName}
-                    onChange={(event) => setDisplayName(event.target.value)}
-                    required
-                  />
-                </label>
-                <label>
-                  Email
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    required
-                  />
-                </label>
+          {phase === "account" &&
+            (sessionConfig?.dev_auth_enabled ? (
+              <form onSubmit={establishWorkspace}>
+                <p className="section-kicker">Step 1 of 5</p>
+                <h2>Continue in the local alpha</h2>
+                <p className="muted">
+                  This local-only form creates a signed development session.
+                  Hosted users sign in through the configured identity provider.
+                </p>
+                <div className="form-grid two">
+                  <label>
+                    Display name
+                    <input
+                      value={displayName}
+                      onChange={(event) => setDisplayName(event.target.value)}
+                      required
+                    />
+                  </label>
+                  <label>
+                    Email
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      required
+                    />
+                  </label>
+                </div>
+                <div className="form-grid two">
+                  <label>
+                    Workspace
+                    <input
+                      value={workspaceName}
+                      onChange={(event) => setWorkspaceName(event.target.value)}
+                      required
+                    />
+                  </label>
+                  <label>
+                    Project
+                    <input
+                      value={projectName}
+                      onChange={(event) => setProjectName(event.target.value)}
+                      required
+                    />
+                  </label>
+                </div>
+                <button className="button primary" type="submit">
+                  Continue locally
+                </button>
+              </form>
+            ) : sessionConfig?.oidc_configured ? (
+              <div>
+                <p className="section-kicker">Step 1 of 5</p>
+                <h2>Sign in to import your recording.</h2>
+                <p className="muted">
+                  Your source files remain private to workspaces you can access.
+                </p>
+                <a
+                  className="button primary"
+                  href={`${sessionConfig.oidc_login_url}?return_to=/upload`}
+                >
+                  Sign in
+                </a>
               </div>
-              <div className="form-grid two">
-                <label>
-                  Workspace
-                  <input
-                    value={workspaceName}
-                    onChange={(event) => setWorkspaceName(event.target.value)}
-                    required
-                  />
-                </label>
-                <label>
-                  Project
-                  <input
-                    value={projectName}
-                    onChange={(event) => setProjectName(event.target.value)}
-                    required
-                  />
-                </label>
+            ) : sessionConfig ? (
+              <div className="error-panel">
+                <p className="section-kicker">Deployment configuration</p>
+                <h2>Hosted sign-in is not configured.</h2>
+                <p>
+                  Ask the deployment operator to configure OIDC before inviting
+                  alpha users.
+                </p>
               </div>
-              <button className="button primary" type="submit">
-                Continue
-              </button>
-            </form>
-          )}
+            ) : (
+              <div className="progress-panel" aria-live="polite">
+                <div className="processing-glyph">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+                <p>Checking account access…</p>
+              </div>
+            ))}
 
           {phase === "files" && (
             <div>
               <p className="section-kicker">Step 2 of 5</p>
               <h2>Select a recording format</h2>
+              {selectedProjectId && (
+                <p className="muted">
+                  This recording will be added to the project you chose from
+                  your workspace.
+                </p>
+              )}
               <div className="format-grid">
                 {FORMATS.map(([id, label, hint]) => (
                   <button
@@ -396,6 +480,12 @@ export default function UploadPage() {
                 <span style={{ width: `${progress}%` }} />
               </div>
               <p>{progress}% · Keep this window open during local uploads.</p>
+              {phase === "processing" && (
+                <p className="muted">
+                  Processing is durable. If you leave after upload completes,
+                  return through <Link href="/workspace">your workspace</Link>.
+                </p>
+              )}
             </div>
           )}
 
@@ -404,6 +494,19 @@ export default function UploadPage() {
               <p className="section-kicker">Import stopped safely</p>
               <h2>Review the recording and try again.</h2>
               <p role="alert">{error}</p>
+              {errorReference && (
+                <div className="error-reference">
+                  Error reference: <code>{errorReference}</code>{" "}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void navigator.clipboard.writeText(errorReference)
+                    }
+                  >
+                    Copy
+                  </button>
+                </div>
+              )}
               <button
                 className="button primary"
                 onClick={() => setPhase("files")}
@@ -419,6 +522,7 @@ export default function UploadPage() {
           )}
         </section>
       </div>
+      <FeedbackButton />
     </main>
   );
 }

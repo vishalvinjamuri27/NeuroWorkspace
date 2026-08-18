@@ -5,10 +5,12 @@ from __future__ import annotations
 import hashlib
 import hmac
 import tempfile
+import traceback
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
+import structlog
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -33,8 +35,11 @@ from neuro_workspace.domain import AssetProbe, CSVImportConfig, JobState, Record
 from neuro_workspace.errors import NeuroError
 from neuro_workspace.ingestion import ingest_recording
 from neuro_workspace.processing import average_reference
+from neuro_workspace.product_analytics import format_category, size_bucket, track_product_event
 from neuro_workspace.signal_store import LocalZarrSignalStore
 from neuro_workspace.storage import ObjectStore
+
+logger = structlog.get_logger(__name__)
 
 
 def _sha256_file(path: Path) -> str:
@@ -89,6 +94,8 @@ def execute_ingestion_job(
 
     session = factory()
     recording_id = ""
+    adapter_id = "unknown"
+    failed_recording: Recording | None = None
     version_id = str(uuid.uuid4())
     try:
         job = session.get(Job, job_id)
@@ -135,6 +142,19 @@ def execute_ingestion_job(
             adapter = (
                 registry.get(upload.format_hint) if upload.format_hint else registry.detect(probes)
             )
+            adapter_id = adapter.format_id
+            if not recording.is_demo:
+                track_product_event(
+                    session,
+                    "ingestion_started",
+                    actor_id=recording.creator_id,
+                    workspace_id=recording.workspace_id,
+                    recording_id=recording.id,
+                    properties={
+                        "format": format_category(upload.format_hint or adapter_id),
+                        "size_bucket": size_bucket(upload.total_bytes),
+                    },
+                )
             config = CSVImportConfig(**upload.csv_config) if upload.csv_config else None
             job.progress = 0.12
             job.stage = "Processing"
@@ -290,12 +310,29 @@ def execute_ingestion_job(
         job.status = JobState.SUCCEEDED
         job.progress = 1.0
         job.stage = "Ready"
+        if not recording.is_demo:
+            track_product_event(
+                session,
+                "ingestion_succeeded",
+                actor_id=recording.creator_id,
+                workspace_id=recording.workspace_id,
+                recording_id=recording.id,
+                properties={
+                    "format": format_category(recording.format_id),
+                    "size_bucket": size_bucket(upload.total_bytes),
+                },
+            )
         session.commit()
     except BaseException as exc:
         session.rollback()
         if version_id:
             signal_store.delete(version_id)
         code, message = _safe_error(exc)
+        diagnostic_id = str(uuid.uuid4())
+        safe_trace = [
+            {"module": Path(frame.filename).name, "function": frame.name, "line": frame.lineno}
+            for frame in traceback.extract_tb(exc.__traceback__)[-12:]
+        ]
         if recording_id:
             failed_recording = session.get(Recording, recording_id)
             if failed_recording is not None and failed_recording.state not in {
@@ -311,6 +348,41 @@ def execute_ingestion_job(
             job.error_code = code
             job.error_message = message
             job.stage = "Failed"
+            job.diagnostic_id = diagnostic_id
+        failed_upload = None
+        if recording_id:
+            failed_asset = session.scalar(
+                select(SourceAsset).where(SourceAsset.recording_id == recording_id).limit(1)
+            )
+            failed_upload = session.get(Upload, failed_asset.upload_id) if failed_asset else None
+        if failed_recording is not None and not failed_recording.is_demo:
+            track_product_event(
+                session,
+                "ingestion_failed",
+                actor_id=failed_recording.creator_id,
+                workspace_id=failed_recording.workspace_id,
+                recording_id=failed_recording.id,
+                properties={
+                    "format": format_category(
+                        (failed_upload.format_hint if failed_upload else None) or adapter_id
+                    ),
+                    "size_bucket": size_bucket(
+                        failed_upload.total_bytes if failed_upload else None
+                    ),
+                    "failure_class": type(exc).__name__,
+                },
+            )
+        logger.error(
+            "ingestion_failed",
+            diagnostic_id=diagnostic_id,
+            job_id=job_id,
+            recording_id=recording_id,
+            adapter=adapter_id,
+            format=format_category(failed_upload.format_hint if failed_upload else None),
+            build_version=settings.build_version,
+            failure_class=type(exc).__name__,
+            safe_trace=safe_trace,
+        )
         session.commit()
         raise
     finally:

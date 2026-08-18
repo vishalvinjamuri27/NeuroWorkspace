@@ -8,6 +8,7 @@ import json
 import time
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from dataclasses import dataclass
+from typing import Any
 
 import jwt
 from jwt import PyJWKClient
@@ -61,6 +62,39 @@ class SessionSigner:
             raise NeuroError("invalid_session", "Sign in again to continue.", 401) from exc
 
 
+class LoginStateSigner:
+    """Short-lived HMAC state for OIDC authorization-code + PKCE login."""
+
+    def __init__(self, secret: str, ttl_seconds: int = 600) -> None:
+        self._secret = secret.encode()
+        self._ttl_seconds = ttl_seconds
+
+    def dumps(self, payload: dict[str, Any]) -> str:
+        body_payload = {**payload, "exp": int(time.time()) + self._ttl_seconds}
+        body = urlsafe_b64encode(
+            json.dumps(body_payload, separators=(",", ":"), sort_keys=True).encode()
+        ).rstrip(b"=")
+        signature = hmac.new(self._secret, body, hashlib.sha256).digest()
+        return f"{body.decode()}.{urlsafe_b64encode(signature).rstrip(b'=').decode()}"
+
+    def loads(self, token: str) -> dict[str, Any]:
+        try:
+            body_text, signature_text = token.split(".", maxsplit=1)
+            body = body_text.encode()
+            signature = urlsafe_b64decode(signature_text + "=" * (-len(signature_text) % 4))
+            expected = hmac.new(self._secret, body, hashlib.sha256).digest()
+            if not hmac.compare_digest(signature, expected):
+                raise ValueError("signature")
+            payload = json.loads(urlsafe_b64decode(body_text + "=" * (-len(body_text) % 4)))
+            if not isinstance(payload, dict) or int(payload["exp"]) < int(time.time()):
+                raise ValueError("expired")
+            return payload
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise NeuroError(
+                "invalid_login_state", "Start sign-in again to continue.", 401
+            ) from exc
+
+
 class OIDCVerifier:
     """Minimal standards-based verifier; domain code remains provider-neutral."""
 
@@ -69,7 +103,7 @@ class OIDCVerifier:
         self.audience = audience
         self.client = PyJWKClient(f"{self.issuer}/.well-known/jwks.json")
 
-    def verify(self, token: str) -> Identity:
+    def verify(self, token: str, *, nonce: str | None = None) -> Identity:
         try:
             key = self.client.get_signing_key_from_jwt(token)
             payload = jwt.decode(
@@ -79,6 +113,8 @@ class OIDCVerifier:
                 audience=self.audience,
                 issuer=self.issuer,
             )
+            if nonce is not None and not hmac.compare_digest(str(payload.get("nonce", "")), nonce):
+                raise ValueError("nonce")
             return Identity(
                 subject=str(payload["sub"]),
                 email=str(payload.get("email", "")),

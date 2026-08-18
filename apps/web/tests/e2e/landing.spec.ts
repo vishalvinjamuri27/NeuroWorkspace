@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+const API_ORIGIN = "http://localhost:8100";
+
 test("landing page explains scope and offers both evaluation paths", async ({
   page,
 }) => {
@@ -22,11 +24,31 @@ test("landing page explains scope and offers both evaluation paths", async ({
   expect(consoleErrors).toEqual([]);
 });
 
+test("public sample supports the guided viewer path", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /Try a sample EEG/ }).click();
+  await expect(page).toHaveURL(/\/recordings\//);
+  await expect(
+    page.getByRole("complementary", { name: "Sample recording guide" }),
+  ).toBeVisible();
+
+  const canvas = page.locator("canvas[aria-label*='signal channels']");
+  await expect(canvas).toBeVisible();
+  await page.getByTitle("Zoom in (+)").click();
+  await page.getByTitle("Pan right (Right arrow)").click();
+  const firstChannel = page.locator(".channel-row input[type='checkbox']").first();
+  await firstChannel.uncheck();
+  await expect(firstChannel).not.toBeChecked();
+  await page.getByRole("tab", { name: /QC review/ }).click();
+  await expect(page.getByText(/not medical or diagnostic/i)).toBeVisible();
+  await expect(page.getByTitle("The public sample is read-only")).toBeDisabled();
+});
+
 test("CSV import supports review, annotation lifecycle, QC, and export", async ({
   page,
 }) => {
   await page.goto("/upload");
-  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Continue locally" }).click();
   await page.getByRole("button", { name: /Delimited text/ }).click();
   await page.locator('input[type="file"]').setInputFiles({
     name: "playwright-eeg.csv",
@@ -95,4 +117,67 @@ test("CSV import supports review, annotation lifecycle, QC, and export", async (
   await page.getByRole("button", { name: "Export" }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe("neuroworkspace-export.json");
+
+  await page.goto("/workspace");
+  const savedRecording = page.getByRole("link", { name: /playwright-eeg/i });
+  await expect(savedRecording).toBeVisible();
+  await savedRecording.click();
+  await expect(page.locator("canvas[aria-label*='signal channels']")).toBeVisible();
+});
+
+test("import failures show a safe reference and recovery path", async ({ page }) => {
+  await page.goto("/upload");
+  await page.getByRole("button", { name: "Continue locally" }).click();
+  await page.getByRole("button", { name: /Delimited text/ }).click();
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "invalid-config.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("time,C3,C4\n0,1,2\n"),
+  });
+  await page.getByRole("button", { name: "Review import" }).click();
+  await page.getByLabel("Sampling frequency (Hz)").fill("0");
+  await page.getByRole("button", { name: "Validate and upload" }).click();
+
+  await expect(page.getByText("Import stopped safely")).toBeVisible();
+  await expect(page.getByText(/Error reference:/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Return to files" })).toBeVisible();
+});
+
+test("workspace authorization hides another user's project", async ({
+  playwright,
+}) => {
+  const first = await playwright.request.newContext({
+    baseURL: API_ORIGIN,
+    extraHTTPHeaders: { Origin: "http://localhost:3100" },
+  });
+  const second = await playwright.request.newContext({
+    baseURL: API_ORIGIN,
+    extraHTTPHeaders: { Origin: "http://localhost:3100" },
+  });
+  try {
+    await expect(
+      (
+        await first.post("/api/session/dev", {
+          data: { email: "alpha-one@example.test", display_name: "Alpha One" },
+        })
+      ).status(),
+    ).toBe(200);
+    const workspaceResponse = await first.post("/api/workspaces", {
+      data: { name: "Private alpha workspace" },
+    });
+    expect(workspaceResponse.status()).toBe(201);
+    const workspace = (await workspaceResponse.json()) as { id: string };
+
+    await second.post("/api/session/dev", {
+      data: { email: "alpha-two@example.test", display_name: "Alpha Two" },
+    });
+    const hidden = await second.get(`/api/workspaces/${workspace.id}/projects`);
+    expect(hidden.status()).toBe(404);
+    expect(await hidden.json()).toMatchObject({
+      error: { code: "not_found" },
+    });
+  } finally {
+    await first.dispose();
+    await second.dispose();
+  }
 });

@@ -329,3 +329,50 @@ class AuditEvent(Base):
     safe_fields: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     correlation_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+
+
+class ProductEvent(Base):
+    """Privacy-bounded product evidence, separate from the security audit trail."""
+
+    __tablename__ = "product_events"
+    __table_args__ = (
+        Index("ix_product_event_name_created", "name", "created_at"),
+        Index("ix_product_event_actor_created", "actor_id", "created_at"),
+        Index("ix_product_event_recording_created", "recording_id", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    name: Mapped[str] = mapped_column(String(80))
+    actor_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    workspace_id: Mapped[str | None] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="SET NULL"), nullable=True
+    )
+    recording_id: Mapped[str | None] = mapped_column(
+        ForeignKey("recordings.id", ondelete="SET NULL"), nullable=True
+    )
+    session_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    safe_properties: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+
+
+class Feedback(TimestampMixin, Base):
+    """User-submitted feedback; never contains automatic scientific attachments."""
+
+    __tablename__ = "feedback"
+    __table_args__ = (Index("ix_feedback_status_created", "status", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    actor_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    workspace_id: Mapped[str | None] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="SET NULL"), nullable=True
+    )
+    recording_id: Mapped[str | None] = mapped_column(
+        ForeignKey("recordings.id", ondelete="SET NULL"), nullable=True
+    )
+    category: Mapped[str] = mapped_column(String(40))
+    message: Mapped[str] = mapped_column(Text)
+    route: Mapped[str] = mapped_column(String(300), default="/")
+    app_version: Mapped[str] = mapped_column(String(80))
+    may_contact: Mapped[bool] = mapped_column(Boolean, default=False)
+    contact_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="NEW")

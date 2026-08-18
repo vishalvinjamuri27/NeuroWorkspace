@@ -18,6 +18,7 @@ export class APIError extends Error {
     message: string,
     readonly code: string,
     readonly status: number,
+    readonly reference: string | null = null,
   ) {
     super(message);
   }
@@ -36,12 +37,14 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as {
-      error?: { code?: string; message?: string };
+      error?: { code?: string; message?: string; correlation_id?: string };
     } | null;
     throw new APIError(
       payload?.error?.message ?? `Request failed (${response.status})`,
       payload?.error?.code ?? "request_failed",
       response.status,
+      payload?.error?.correlation_id ??
+        response.headers.get("X-Correlation-ID"),
     );
   }
   if (response.status === 204) return undefined as T;
@@ -54,6 +57,13 @@ export const api = {
   demo: () => request<Recording>("/demo/recording"),
   session: () =>
     request<{ user: { display_name: string; email: string } }>("/session"),
+  sessionConfig: () =>
+    request<{
+      dev_auth_enabled: boolean;
+      oidc_configured: boolean;
+      oidc_login_url: string;
+      build_version: string;
+    }>("/session/config"),
   signIn: (email: string, displayName: string) =>
     request<{ user: { display_name: string; email: string } }>("/session/dev", {
       method: "POST",
@@ -139,6 +149,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ name }),
     }),
+  workspaces: () => request<Workspace[]>("/workspaces"),
+  projects: (workspaceId: string) =>
+    request<Project[]>(`/workspaces/${workspaceId}/projects`),
+  recordings: (projectId: string) =>
+    request<Recording[]>(`/projects/${projectId}/recordings`),
   createProject: (workspaceId: string, name: string) =>
     request<Project>(`/workspaces/${workspaceId}/projects`, {
       method: "POST",
@@ -179,10 +194,12 @@ export const api = {
     ),
   job: (id: string) =>
     request<{
+      id: string;
       status: string;
       stage: string;
       progress: number;
       error_message: string | null;
+      diagnostic_id: string | null;
     }>(`/jobs/${id}`),
   createExport: (
     recordingId: string,
@@ -193,6 +210,48 @@ export const api = {
       body: JSON.stringify({ format_id: formatId }),
     }),
   exportUrl: (id: string) => `${API_BASE}/exports/${id}/content`,
+  feedback: (input: {
+    category: string;
+    message: string;
+    route: string;
+    workspace_id?: string | null;
+    recording_id?: string | null;
+    may_contact: boolean;
+    contact_email?: string | null;
+  }) =>
+    request<{ id: string }>("/feedback", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  track: async (
+    name:
+      | "sample_demo_started"
+      | "sample_recording_opened"
+      | "recording_opened"
+      | "viewer_zoomed"
+      | "viewer_panned"
+      | "channel_visibility_changed"
+      | "qc_opened",
+    recordingId?: string,
+  ) => {
+    if (typeof window === "undefined") return;
+    const key = `nw-event:${name}:${recordingId ?? "global"}`;
+    if (window.sessionStorage.getItem(key)) return;
+    let sessionId = window.sessionStorage.getItem("nw-product-session");
+    if (!sessionId) {
+      sessionId = window.crypto.randomUUID();
+      window.sessionStorage.setItem("nw-product-session", sessionId);
+    }
+    await request<void>("/product-events", {
+      method: "POST",
+      body: JSON.stringify({
+        name,
+        session_id: sessionId,
+        recording_id: recordingId ?? null,
+      }),
+    });
+    window.sessionStorage.setItem(key, "1");
+  },
 };
 
 export function formatDuration(seconds: number): string {

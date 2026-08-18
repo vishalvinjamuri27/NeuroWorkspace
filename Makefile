@@ -24,6 +24,9 @@ migrate: ## Apply database migrations
 	uv run alembic upgrade head
 
 seed: ## Create the public sample workspace/recording
+	uv run python scripts/seed_public_sample.py
+
+seed-synthetic: ## Create the no-network synthetic fallback for development
 	uv run python scripts/seed_sample.py
 
 lint: ## Run Python and frontend linters

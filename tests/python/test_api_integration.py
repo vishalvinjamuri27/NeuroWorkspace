@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 import io
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
+from sqlalchemy import select
 
 from conftest import sign_in
+from neuro_api.main import create_app
+from neuro_workspace.auth import Identity, OIDCVerifier
+from neuro_workspace.config import Settings
 
 
 def create_workspace_project(client: TestClient) -> tuple[str, str]:
@@ -196,6 +202,195 @@ def test_request_boundary_and_validation(client: TestClient) -> None:
     invalid = client.post("/api/session/dev", json={"email": "x", "display_name": ""})
     assert invalid.status_code == 422
     assert invalid.json()["error"]["code"] == "invalid_request"
+
+
+def test_oidc_authorization_code_pkce_and_state_validation(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    oidc_settings = settings.model_copy(
+        update={
+            "dev_auth_enabled": False,
+            "oidc_issuer": "http://identity.example.test",
+            "oidc_audience": "neuroworkspace-alpha",
+            "oidc_client_id": "alpha-client",
+            "oidc_client_secret": SecretStr("test-provider-secret"),
+            "web_public_url": "http://web.example.test",
+        }
+    )
+
+    class FakeResponse:
+        def __init__(self, payload: dict[str, str]) -> None:
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, str]:
+            return self._payload
+
+    discovery = {
+        "issuer": "http://identity.example.test",
+        "authorization_endpoint": "http://identity.example.test/authorize",
+        "token_endpoint": "http://identity.example.test/token",
+    }
+    monkeypatch.setattr(
+        "neuro_api.routes_session.httpx.get", lambda *args, **kwargs: FakeResponse(discovery)
+    )
+    token_requests: list[dict[str, str]] = []
+
+    def fake_token_request(*args: object, **kwargs: object) -> FakeResponse:
+        token_requests.append(dict(kwargs["data"]))  # type: ignore[arg-type]
+        return FakeResponse({"id_token": "verified-by-test-double"})
+
+    monkeypatch.setattr("neuro_api.routes_session.httpx.post", fake_token_request)
+
+    def fake_verify(self: OIDCVerifier, token: str, *, nonce: str | None = None) -> Identity:
+        assert token == "verified-by-test-double"
+        assert nonce and len(nonce) >= 32
+        return Identity("oidc:alpha-user", "alpha@example.test", "Alpha User")
+
+    monkeypatch.setattr(OIDCVerifier, "verify", fake_verify)
+
+    with TestClient(create_app(oidc_settings)) as oidc_client:
+        begin = oidc_client.get(
+            "/api/session/oidc/login",
+            params={"return_to": "/workspace"},
+            follow_redirects=False,
+        )
+        assert begin.status_code == 302
+        authorization = urlparse(begin.headers["location"])
+        query = parse_qs(authorization.query)
+        assert authorization.path == "/authorize"
+        assert query["code_challenge_method"] == ["S256"]
+        assert query["nonce"][0]
+        assert query["state"][0]
+
+        rejected = oidc_client.get(
+            "/api/session/oidc/callback",
+            params={"code": "alpha-code", "state": "tampered"},
+            follow_redirects=False,
+        )
+        assert rejected.status_code == 401
+        assert rejected.json()["error"]["code"] == "invalid_login_state"
+
+        complete = oidc_client.get(
+            "/api/session/oidc/callback",
+            params={"code": "alpha-code", "state": query["state"][0]},
+            follow_redirects=False,
+        )
+        assert complete.status_code == 302
+        assert complete.headers["location"] == "http://web.example.test/workspace"
+        assert token_requests[0]["code_verifier"]
+        assert token_requests[0]["client_secret"] == "test-provider-secret"
+        assert oidc_client.get("/api/session").json()["user"]["email"] == "alpha@example.test"
+
+
+@pytest.mark.integration
+def test_product_evidence_feedback_and_return_metrics_are_privacy_bounded(
+    signed_in_client: TestClient,
+) -> None:
+    client = signed_in_client
+    workspace_id, project_id = create_workspace_project(client)
+    recording_id, _ = upload_csv(client, project_id)
+
+    forbidden_properties = client.post(
+        "/api/product-events",
+        json={
+            "name": "recording_opened",
+            "session_id": "session-one",
+            "recording_id": recording_id,
+            "properties": {"filename": "patient-name.edf"},
+        },
+    )
+    assert forbidden_properties.status_code == 422
+
+    for session_id in ("session-one", "session-two"):
+        opened = client.post(
+            "/api/product-events",
+            json={
+                "name": "recording_opened",
+                "session_id": session_id,
+                "recording_id": recording_id,
+            },
+        )
+        assert opened.status_code == 204, opened.text
+    assert (
+        client.post(
+            "/api/product-events",
+            json={
+                "name": "viewer_zoomed",
+                "session_id": "session-two",
+                "recording_id": recording_id,
+            },
+        ).status_code
+        == 204
+    )
+    assert (
+        client.post(
+            "/api/product-events",
+            json={
+                "name": "qc_opened",
+                "session_id": "session-two",
+                "recording_id": recording_id,
+            },
+        ).status_code
+        == 204
+    )
+    channels = client.get(f"/api/recordings/{recording_id}/channels").json()
+    annotation = client.post(
+        f"/api/recordings/{recording_id}/annotations",
+        json={
+            "onset_seconds": 0.1,
+            "duration_seconds": 0.1,
+            "label": "Private user-authored label",
+            "description": "This content must not enter product events",
+        },
+    )
+    assert annotation.status_code == 201
+    assert (
+        client.put(
+            f"/api/recordings/{recording_id}/bad-channels/{channels[0]['id']}",
+            json={"state": "confirmed_bad", "reason": "Private review reason"},
+        ).status_code
+        == 200
+    )
+
+    feedback = client.post(
+        "/api/feedback",
+        json={
+            "category": "confusing_workflow",
+            "message": "I could not find the return path.",
+            "route": f"/recordings/{recording_id}",
+            "workspace_id": workspace_id,
+            "recording_id": recording_id,
+            "may_contact": False,
+            "contact_email": "must-not-be-retained@example.test",
+        },
+    )
+    assert feedback.status_code == 201, feedback.text
+    admin_feedback = client.get("/api/admin/feedback")
+    assert admin_feedback.status_code == 200
+    assert admin_feedback.json()[0]["contact_email"] is None
+
+    metrics = client.get("/api/admin/product-metrics")
+    assert metrics.status_code == 200, metrics.text
+    payload = metrics.json()
+    assert payload["event_counts"]["recording_reopened"] == 1
+    assert payload["event_counts"]["annotation_created"] == 1
+    assert payload["event_counts"]["bad_channel_marked"] == 1
+    assert payload["format_counts"]["csv"] >= 1
+    assert payload["size_bucket_counts"]["<100 MB"] >= 1
+    assert payload["return_behavior_rate"] == 1.0
+
+    runtime = client.app.state.runtime
+    with runtime.session_factory() as session:
+        from neuro_workspace.db.models import ProductEvent
+
+        rows = session.scalars(select(ProductEvent)).all()
+        serialized = repr([row.safe_properties for row in rows])
+        assert "patient-name" not in serialized
+        assert "Private user-authored" not in serialized
+        assert "Private review reason" not in serialized
 
 
 @pytest.mark.integration

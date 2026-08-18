@@ -12,11 +12,14 @@ COPY apps/api apps/api
 COPY apps/worker apps/worker
 COPY alembic.ini ./
 COPY alembic alembic
+COPY scripts/fetch_test_data.py scripts/fetch_test_data.py
+COPY scripts/seed_public_sample.py scripts/seed_public_sample.py
 COPY scripts/seed_sample.py scripts/seed_sample.py
+COPY testdata/manifest.yaml testdata/manifest.yaml
 RUN uv sync --frozen --no-dev && \
     addgroup --system neuroworkspace && \
     adduser --system --ingroup neuroworkspace --home /app neuroworkspace && \
     mkdir -p /data/objects && chown -R neuroworkspace:neuroworkspace /app /data
 USER neuroworkspace
 EXPOSE 8000
-CMD ["sh", "-c", "alembic upgrade head && python scripts/seed_sample.py && exec uvicorn neuro_api.main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "alembic upgrade head && python scripts/seed_public_sample.py && exec uvicorn neuro_api.main:app --host 0.0.0.0 --port 8000"]

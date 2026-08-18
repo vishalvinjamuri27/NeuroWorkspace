@@ -40,6 +40,7 @@ def settings(tmp_path: Path) -> Settings:
         api_public_url="http://testserver",
         cors_origins="http://testserver,http://localhost:3000",
         build_version="test",
+        alpha_admin_emails="owner@example.test",
     )
 
 

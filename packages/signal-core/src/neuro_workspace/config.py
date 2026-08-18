@@ -31,8 +31,12 @@ class Settings(BaseSettings):
     dev_auth_enabled: bool = True
     oidc_issuer: str | None = None
     oidc_audience: str | None = None
+    oidc_client_id: str | None = None
+    oidc_client_secret: SecretStr | None = None
     api_public_url: str = "http://localhost:8000"
+    web_public_url: str = "http://localhost:3000"
     cors_origins: str = "http://localhost:3000"
+    alpha_admin_emails: str = ""
     worker_eager: bool = True
     max_upload_bytes: int = 20 * 1024 * 1024 * 1024
     max_upload_files: int = 16
@@ -43,6 +47,7 @@ class Settings(BaseSettings):
     feature_flags: str = ""
     log_level: str = "INFO"
     build_version: str = "development"
+    require_demo_ready: bool = False
 
     @property
     def allowed_origins(self) -> list[str]:
@@ -52,6 +57,14 @@ class Settings(BaseSettings):
     def enabled_features(self) -> frozenset[str]:
         return frozenset(
             flag.strip().casefold() for flag in self.feature_flags.split(",") if flag.strip()
+        )
+
+    @property
+    def alpha_admin_email_set(self) -> frozenset[str]:
+        return frozenset(
+            email.strip().casefold()
+            for email in self.alpha_admin_emails.split(",")
+            if email.strip()
         )
 
     def feature_enabled(self, flag: str) -> bool:
@@ -64,10 +77,16 @@ class Settings(BaseSettings):
                 raise ValueError("DEV_AUTH_ENABLED must be false in production")
             if not self.oidc_issuer or not self.oidc_audience:
                 raise ValueError("OIDC_ISSUER and OIDC_AUDIENCE are required in production")
+            if not self.oidc_client_id:
+                raise ValueError("OIDC_CLIENT_ID is required in production")
+            if not self.oidc_issuer.startswith("https://"):
+                raise ValueError("OIDC_ISSUER must use HTTPS in production")
             if len(self.session_secret.get_secret_value()) < 32:
                 raise ValueError("SESSION_SECRET must contain at least 32 characters")
             if self.object_store_backend != "s3":
                 raise ValueError("production requires private S3-compatible object storage")
+            if not self.require_demo_ready:
+                raise ValueError("REQUIRE_DEMO_READY must be true in production")
         return self
 
 

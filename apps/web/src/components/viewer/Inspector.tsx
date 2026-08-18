@@ -21,6 +21,7 @@ export function Inspector({
   editable,
   onEditAnnotation,
   onDeleteAnnotation,
+  onQcOpen,
 }: {
   recording: Recording;
   events: Event[];
@@ -30,6 +31,7 @@ export function Inspector({
   editable: boolean;
   onEditAnnotation: (annotation: Annotation) => void;
   onDeleteAnnotation: (annotation: Annotation) => void;
+  onQcOpen?: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("events");
   const metadata = recording.safe_metadata as Record<string, unknown>;
@@ -52,7 +54,10 @@ export function Inspector({
             role="tab"
             aria-selected={tab === id}
             className={tab === id ? "active" : ""}
-            onClick={() => setTab(id)}
+            onClick={() => {
+              setTab(id);
+              if (id === "qc") onQcOpen?.();
+            }}
           >
             {label}
             {count !== null && <span>{count}</span>}
@@ -163,10 +168,19 @@ export function Inspector({
               <dt>Source provenance</dt>
               <dd>
                 {recording.source_provenance.kind === "synthetic"
-                  ? "Deterministic synthetic sample; contains no human data."
+                  ? String(
+                      metadata.attribution ??
+                        "Deterministic synthetic sample; contains no human data.",
+                    )
                   : "Source assets verified by SHA-256; sensitive source metadata is not displayed here."}
               </dd>
             </div>
+            {recording.is_demo && metadata.limitations ? (
+              <div className="wide">
+                <dt>Sample limitation</dt>
+                <dd>{String(metadata.limitations)}</dd>
+              </div>
+            ) : null}
           </dl>
         )}
       </div>

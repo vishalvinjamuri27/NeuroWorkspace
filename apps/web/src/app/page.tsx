@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { api } from "../lib/api";
+import { FeedbackButton } from "../components/FeedbackButton";
+
+const repositoryUrl = process.env.NEXT_PUBLIC_REPOSITORY_URL;
 
 export default function HomePage() {
   const router = useRouter();
@@ -15,6 +18,7 @@ export default function HomePage() {
     setLoading(true);
     setError("");
     try {
+      void api.track("sample_demo_started").catch(() => undefined);
       const recording = await api.demo();
       router.push(`/recordings/${recording.id}`);
     } catch (caught) {
@@ -39,7 +43,8 @@ export default function HomePage() {
         <nav aria-label="Primary navigation">
           <a href="#capabilities">Capabilities</a>
           <a href="#capabilities">How it works</a>
-          <Link className="button secondary small" href="/upload">
+          {repositoryUrl && <a href={repositoryUrl}>Source</a>}
+          <Link className="button secondary small" href="/workspace">
             Open workspace
           </Link>
         </nav>
@@ -57,7 +62,7 @@ export default function HomePage() {
         <p className="hero-copy">
           Upload EEG recordings, navigate long signals smoothly, review QC,
           annotate evidence, and preserve every transformation in a reproducible
-          workspace.
+          workspace for researchers, BCI developers, and neurotechnology teams.
         </p>
         <div className="hero-actions">
           <button
@@ -68,13 +73,14 @@ export default function HomePage() {
             {loading ? "Opening sample…" : "Try a sample EEG"}
             <span aria-hidden="true">→</span>
           </button>
-          <Link className="button secondary" href="/upload">
+          <Link className="button secondary" href="/workspace">
             Import a recording
           </Link>
         </div>
         {error && (
           <p className="inline-error" role="alert">
-            {error} Run the sample seed command, then try again.
+            {error} Please try once more. If it persists, send feedback with
+            this page open.
           </p>
         )}
         <div className="trust-row" aria-label="Product properties">
@@ -86,7 +92,7 @@ export default function HomePage() {
 
       <section className="signal-preview" aria-label="Waveform viewer preview">
         <div className="preview-bar">
-          <span>sleep-study-07 / night-1.edf</span>
+          <span>Illustrative viewer preview · not shipped subject data</span>
           <span className="ready-pill">● READY</span>
         </div>
         <div className="preview-body">
@@ -191,9 +197,13 @@ export default function HomePage() {
         </article>
       </section>
       <footer className="landing-footer">
-        NeuroWorkspace is not a medical device and is not intended for diagnosis
-        or treatment.
+        <span>
+          NeuroWorkspace is not a medical device and is not intended for
+          diagnosis or treatment.
+        </span>
+        {repositoryUrl && <a href={repositoryUrl}>View the open-source repository</a>}
       </footer>
+      <FeedbackButton />
     </main>
   );
 }
