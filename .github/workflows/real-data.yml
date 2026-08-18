@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: "3.13.7"
       - run: uv sync --frozen --extra dev
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .cache/neuro-workspace/testdata
           key: public-neuro-data-${{ hashFiles('testdata/manifest.yaml') }}
