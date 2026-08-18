@@ -17,7 +17,7 @@ jobs:
         with:
           version: "0.8.22"
           enable-cache: true
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13.7"
       - run: uv sync --frozen --extra dev
@@ -58,7 +58,7 @@ jobs:
         with:
           version: "0.8.22"
           enable-cache: true
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13.7"
       - uses: pnpm/action-setup@v4
@@ -84,7 +84,7 @@ jobs:
         with:
           version: "0.8.22"
           enable-cache: true
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13.7"
       - uses: pnpm/action-setup@v4
