@@ -1,0 +1,93 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "neuroworkspace"
+version = "0.1.0"
+description = "Web-first workspace for reproducible neural and physiological signal review"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+license = { text = "Apache-2.0" }
+dependencies = [
+  "alembic>=1.16,<2",
+  "boto3>=1.39,<2",
+  "celery[redis]>=5.6,<6",
+  "fastapi>=0.141,<1",
+  "httpx>=0.28,<1",
+  "mne>=1.12,<1.13",
+  "mne-bids>=0.19,<0.20",
+  "numpy>=2.2,<3",
+  "orjson>=3.10,<4",
+  "PyJWT[crypto]>=2.10,<3",
+  "psutil>=7,<8",
+  "psycopg[binary]>=3.2,<4",
+  "pydantic>=2.13,<3",
+  "pydantic-settings>=2.10,<3",
+  "python-multipart>=0.0.20,<1",
+  "pyyaml>=6,<7",
+  "scipy>=1.15,<2",
+  "s3fs>=2025.7,<2027",
+  "sqlalchemy>=2.0.52,<2.1",
+  "structlog>=25,<26",
+  "uvicorn[standard]>=0.35,<1",
+  "zarr>=3.3,<3.4",
+]
+
+[project.optional-dependencies]
+dev = [
+  "coverage[toml]>=7.10,<8",
+  "hypothesis>=6.138,<7",
+  "mypy>=1.17,<2",
+  "pytest>=8.4,<10",
+  "pytest-asyncio>=1.1,<2",
+  "pytest-cov>=6.2,<8",
+  "ruff>=0.12,<1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["packages/signal-core/src/neuro_workspace", "apps/api/src/neuro_api", "apps/worker/src/neuro_worker"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers"
+testpaths = ["tests/python"]
+pythonpath = ["packages/signal-core/src", "apps/api/src", "apps/worker/src"]
+markers = [
+  "integration: service-level integration tests",
+  "real_data: tests requiring checksum-pinned public datasets",
+  "slow: generated performance or stress tests",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["packages/signal-core/src", "apps/api/src", "apps/worker/src", "tests/python", "scripts"]
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF", "ASYNC", "S"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S105", "S106", "S108"]
+"scripts/**" = ["S310"]
+"apps/api/**" = ["B008"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+mypy_path = ["packages/signal-core/src", "apps/api/src", "apps/worker/src"]
+exclude = ["alembic/versions"]
+
+[[tool.mypy.overrides]]
+module = ["mne.*", "zarr.*", "boto3.*", "botocore.*", "celery.*", "yaml.*", "scipy.*"]
+ignore_missing_imports = true
+
+[tool.coverage.run]
+branch = true
+source = ["neuro_workspace", "neuro_api", "neuro_worker"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80

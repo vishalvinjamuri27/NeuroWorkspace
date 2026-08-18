@@ -1,0 +1,68 @@
+"""Validated runtime configuration."""
+
+from __future__ import annotations
+
+from functools import lru_cache
+from pathlib import Path
+from typing import Literal
+
+from pydantic import Field, SecretStr, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    """Application settings shared by API and workers."""
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    environment: Literal["development", "test", "staging", "production"] = "development"
+    database_url: str = "sqlite:///./data/neuroworkspace.db"
+    redis_url: str = "redis://localhost:6379/0"
+    object_store_backend: Literal["local", "s3"] = "local"
+    object_store_root: Path = Path("data/objects")
+    s3_endpoint_url: str | None = None
+    s3_public_endpoint_url: str | None = None
+    s3_access_key: str | None = None
+    s3_secret_key: SecretStr | None = None
+    s3_bucket: str = "neuroworkspace"
+    session_secret: SecretStr = Field(default=SecretStr("development-only-secret-change-me"))
+    session_cookie_name: str = "nw_session"
+    session_ttl_seconds: int = 8 * 60 * 60
+    dev_auth_enabled: bool = True
+    oidc_issuer: str | None = None
+    oidc_audience: str | None = None
+    api_public_url: str = "http://localhost:8000"
+    cors_origins: str = "http://localhost:3000"
+    worker_eager: bool = True
+    max_upload_bytes: int = 20 * 1024 * 1024 * 1024
+    max_upload_files: int = 16
+    max_waveform_channels: int = 256
+    max_waveform_pixels: int = 4096
+    max_waveform_points: int = 1_500_000
+    waveform_cache_seconds: int = 300
+    log_level: str = "INFO"
+    build_version: str = "development"
+
+    @property
+    def allowed_origins(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @model_validator(mode="after")
+    def validate_production_safety(self) -> Settings:
+        if self.environment == "production":
+            if self.dev_auth_enabled:
+                raise ValueError("DEV_AUTH_ENABLED must be false in production")
+            if not self.oidc_issuer or not self.oidc_audience:
+                raise ValueError("OIDC_ISSUER and OIDC_AUDIENCE are required in production")
+            if len(self.session_secret.get_secret_value()) < 32:
+                raise ValueError("SESSION_SECRET must contain at least 32 characters")
+            if self.object_store_backend != "s3":
+                raise ValueError("production requires private S3-compatible object storage")
+        return self
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    """Return the process-wide validated settings object."""
+
+    return Settings()
