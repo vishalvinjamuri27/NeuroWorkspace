@@ -22,4 +22,4 @@ RUN uv sync --frozen --no-dev && \
     mkdir -p /data/objects && chown -R neuroworkspace:neuroworkspace /app /data
 USER neuroworkspace
 EXPOSE 8000
-CMD ["sh", "-c", "alembic upgrade head && python scripts/seed_public_sample.py && exec uvicorn neuro_api.main:app --host 0.0.0.0 --port 8000"]
+CMD ["uvicorn", "neuro_api.main:app", "--host", "0.0.0.0", "--port", "8000"]

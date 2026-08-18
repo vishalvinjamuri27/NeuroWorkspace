@@ -201,7 +201,9 @@ export default function HomePage() {
           NeuroWorkspace is not a medical device and is not intended for
           diagnosis or treatment.
         </span>
-        {repositoryUrl && <a href={repositoryUrl}>View the open-source repository</a>}
+        {repositoryUrl && (
+          <a href={repositoryUrl}>View the open-source repository</a>
+        )}
       </footer>
       <FeedbackButton />
     </main>

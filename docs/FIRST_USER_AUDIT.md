@@ -116,3 +116,28 @@ This phase will address every BLOCKER and HIGH finding. Medium issues will be fi
 - Unsupported/broken uploads present an actionable message plus a safe reference.
 - Product events contain only documented allowlisted properties and support the defined alpha ratios.
 - Feedback can be submitted without attaching files, signal data, metadata, filenames, or annotation contents.
+
+## Re-audit result
+
+All BLOCKER and HIGH findings were addressed and re-exercised:
+
+- B1: production readiness now requires a usable demo; the release/bootstrap job
+  checksum-verifies and ingests the pinned OpenNeuro sample.
+- B2: hosted mode exposes provider-neutral OIDC authorization code + PKCE and
+  refuses to show local credentials when it is not configured.
+- B3: viewer startup retries one transient load, exposes retry/recovery, and carries
+  safe API/job reference IDs.
+- H1/H2: `/workspace` lists workspace/project/recording hierarchy, reopens work,
+  and imports into an existing project.
+- H3/H4: the shared sample is consistently read-only, visibly attributed, and
+  includes a one-minute control/QC/metadata guide.
+- H5: product events and aggregate ratios are allowlisted and privacy-tested.
+- H6: persistent in-app feedback uses fixed categories and explicit data warnings.
+- H7: ingestion failures provide a diagnostic reference backed by safe structured
+  worker context.
+
+The five-flow Chromium suite covered landing/sample/QC, own-data
+signup→workspace→project→ingestion→annotation→export→reopen, visible failure
+recovery, and two-user authorization. The remaining public-launch blocker is
+environmental: Docker/Compose and restart persistence were not executable on this
+host and must pass on the deployment environment.

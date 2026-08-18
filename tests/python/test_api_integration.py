@@ -84,6 +84,7 @@ def test_csv_upload_view_annotate_process_export_and_delete(
     recording = client.get(f"/api/recordings/{recording_id}")
     assert recording.json()["state"] == "READY"
     assert recording.json()["safe_metadata"]["channel_count"] == 2
+    original_version_id = recording.json()["active_version_id"]
     metrics = client.get(f"/api/workspaces/{workspace_id}/metrics")
     assert metrics.status_code == 200
     assert metrics.json()["recordings_ready"] == 1
@@ -184,10 +185,12 @@ def test_csv_upload_view_annotate_process_export_and_delete(
     sign_in(client, "outsider@example.test")
     # Resource existence is intentionally hidden across workspace boundaries.
     assert client.get(f"/api/recordings/{recording_id}").status_code == 404
+    assert client.get(f"/api/exports/{exported.json()['id']}/content").status_code == 404
     sign_in(client)
     deleted = client.delete(f"/api/recordings/{recording_id}")
     assert deleted.status_code == 202, deleted.text
     assert client.get(f"/api/recordings/{recording_id}").status_code == 404
+    assert not client.app.state.runtime.signal_store.version_path(original_version_id).exists()
 
 
 def test_request_boundary_and_validation(client: TestClient) -> None:
@@ -202,6 +205,52 @@ def test_request_boundary_and_validation(client: TestClient) -> None:
     invalid = client.post("/api/session/dev", json={"email": "x", "display_name": ""})
     assert invalid.status_code == 422
     assert invalid.json()["error"]["code"] == "invalid_request"
+
+
+def test_public_alpha_upload_boundaries_reject_unsafe_inputs(
+    signed_in_client: TestClient, settings: Settings
+) -> None:
+    _, project_id = create_workspace_project(signed_in_client)
+    base = {
+        "recording_name": "Boundary fixture",
+        "format_hint": "edf",
+        "assets": [
+            {
+                "name": "recording.edf",
+                "size_bytes": 1,
+                "role": "primary",
+                "media_type": "application/octet-stream",
+            }
+        ],
+    }
+    unsafe_name = signed_in_client.post(
+        f"/api/projects/{project_id}/uploads",
+        json={**base, "assets": [{**base["assets"][0], "name": "../patient.edf"}]},
+    )
+    assert unsafe_name.status_code == 422
+    assert unsafe_name.json()["error"]["code"] == "unsafe_filename"
+
+    oversized = signed_in_client.post(
+        f"/api/projects/{project_id}/uploads",
+        json={
+            **base,
+            "assets": [
+                {
+                    **base["assets"][0],
+                    "size_bytes": settings.max_upload_bytes + 1,
+                }
+            ],
+        },
+    )
+    assert oversized.status_code == 422
+    assert oversized.json()["error"]["code"] == "too_large"
+
+    unsupported = signed_in_client.post(
+        f"/api/projects/{project_id}/uploads",
+        json={**base, "format_hint": "zip"},
+    )
+    assert unsupported.status_code == 422
+    assert unsupported.json()["error"]["code"] == "invalid_request"
 
 
 def test_oidc_authorization_code_pkce_and_state_validation(

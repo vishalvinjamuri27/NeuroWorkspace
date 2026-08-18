@@ -1,6 +1,6 @@
 {
   "name": "neuroworkspace",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
   "private": true,
   "packageManager": "pnpm@11.19.0",
   "scripts": {

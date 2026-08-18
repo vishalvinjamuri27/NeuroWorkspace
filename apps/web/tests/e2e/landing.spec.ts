@@ -36,12 +36,16 @@ test("public sample supports the guided viewer path", async ({ page }) => {
   await expect(canvas).toBeVisible();
   await page.getByTitle("Zoom in (+)").click();
   await page.getByTitle("Pan right (Right arrow)").click();
-  const firstChannel = page.locator(".channel-row input[type='checkbox']").first();
+  const firstChannel = page
+    .locator(".channel-row input[type='checkbox']")
+    .first();
   await firstChannel.uncheck();
   await expect(firstChannel).not.toBeChecked();
   await page.getByRole("tab", { name: /QC review/ }).click();
   await expect(page.getByText(/not medical or diagnostic/i)).toBeVisible();
-  await expect(page.getByTitle("The public sample is read-only")).toBeDisabled();
+  await expect(
+    page.getByTitle("The public sample is read-only"),
+  ).toBeDisabled();
 });
 
 test("CSV import supports review, annotation lifecycle, QC, and export", async ({
@@ -89,11 +93,16 @@ test("CSV import supports review, annotation lifecycle, QC, and export", async (
   await page
     .getByRole("dialog", { name: "Create annotation" })
     .getByLabel("Label")
-    .fill("Review region");
+    .fill('<img src=x onerror="window.__nwXss=true">');
   await page.getByRole("button", { name: "Save annotation" }).click();
 
   await page.getByRole("tab", { name: /Annotations/ }).click();
-  await expect(page.getByText("Review region")).toBeVisible();
+  await expect(
+    page.getByText('<img src=x onerror="window.__nwXss=true">'),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() => Reflect.get(window, "__nwXss")),
+  ).toBeUndefined();
   await page.getByRole("button", { name: "Edit" }).click();
   const editor = page.getByRole("dialog", { name: "Edit annotation" });
   await editor.getByLabel("Label").fill("Reviewed region");
@@ -122,10 +131,14 @@ test("CSV import supports review, annotation lifecycle, QC, and export", async (
   const savedRecording = page.getByRole("link", { name: /playwright-eeg/i });
   await expect(savedRecording).toBeVisible();
   await savedRecording.click();
-  await expect(page.locator("canvas[aria-label*='signal channels']")).toBeVisible();
+  await expect(
+    page.locator("canvas[aria-label*='signal channels']"),
+  ).toBeVisible();
 });
 
-test("import failures show a safe reference and recovery path", async ({ page }) => {
+test("import failures show a safe reference and recovery path", async ({
+  page,
+}) => {
   await page.goto("/upload");
   await page.getByRole("button", { name: "Continue locally" }).click();
   await page.getByRole("button", { name: /Delimited text/ }).click();
@@ -140,7 +153,9 @@ test("import failures show a safe reference and recovery path", async ({ page })
 
   await expect(page.getByText("Import stopped safely")).toBeVisible();
   await expect(page.getByText(/Error reference:/)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Return to files" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Return to files" }),
+  ).toBeVisible();
 });
 
 test("workspace authorization hides another user's project", async ({

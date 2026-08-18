@@ -79,7 +79,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(
         title="NeuroWorkspace API",
-        version="0.1.0",
+        version="0.1.0-alpha.1",
         description=(
             "Non-clinical research/engineering API for private neural and "
             "physiological recordings. "

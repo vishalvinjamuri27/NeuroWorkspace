@@ -1,98 +1,124 @@
 # NeuroWorkspace
 
-NeuroWorkspace is an open-source, web-first workspace for inspecting, annotating,
-quality-reviewing, and reproducibly processing neural and physiological recordings.
-The alpha centers EEG and keeps original files immutable. It is a research and
-engineering tool—not a medical device or diagnostic system.
+A modern open-source workspace for inspecting, annotating, quality-reviewing, and
+organizing EEG recordings.
 
-> Current status: active alpha implementation. Compatibility and performance are
-> reported only when exercised against pinned public data. See the readiness report
-> before relying on a format.
+![The NeuroWorkspace recording workspace showing an attributed public EEG sample, waveform controls, channel visibility, and QC review](docs/assets/neuroworkspace-recording-workspace.png)
 
-![NeuroWorkspace landing page and waveform preview](docs/assets/neuroworkspace-landing.png)
+NeuroWorkspace is for EEG researchers, BCI developers, and neurotechnology teams
+who need to review long recordings without giving up source hashes, units,
+annotations, or processing provenance. It is research software, not a medical
+device or diagnostic system.
 
-## What it is for
+**Hosted alpha:** no public URL has been published yet. A deployment operator adds
+the URL after completing the [public-alpha deployment gates](docs/PUBLIC_ALPHA_DEPLOYMENT.md).
 
-- Open EDF/EDF+, BioSemi BDF, BrainVision, EEGLAB, FIF, or configured CSV data.
-- Inspect recording metadata and navigate long multichannel waveforms without
-  loading the recording into the browser.
-- Review imported events, create attributed annotations, and confirm bad channels.
-- Inspect transparent QC heuristics separately from human decisions.
-- Create immutable, versioned processing runs and export useful artifacts.
-- Collaborate within workspace-scoped projects with explicit authorization.
+## Try Sample EEG
 
-The first screen offers **Try sample recording** and **Upload recording**. The
-sample path uses an attributed public/synthetic artifact and requires no private
-upload.
+The homepage opens a shared, read-only recording with no account or upload. The
+sample is a checksum-pinned EEGLAB recording from OpenNeuro ds004362 v1.0.0
+(DOI 10.18112/openneuro.ds004362.v1.0.0), whose dataset declares CC0. Attribution
+and limitations stay visible in the workspace. Within a minute, a visitor can
+zoom, pan, toggle channels, inspect a source event, read metadata, and review
+non-diagnostic QC suggestions.
 
-## Architecture
+## Start locally
 
-Next.js renders a Canvas waveform viewer. FastAPI serves workspace resources and
-viewport-sized waveform envelopes. Celery workers use MNE for scientific I/O,
-write immutable Zarr arrays/pyramids to a shared durable volume in the first Docker
-deployment, and keep job state/provenance in PostgreSQL. Source uploads and exports
-use private S3-compatible storage; Redis delivers jobs. A fully object-native
-canonical Zarr backend remains a documented scale-out item.
-
-See [technical design](docs/TECH_DESIGN.md), [data model](docs/DATA_MODEL.md),
-[viewer design](docs/VIEWER_DESIGN.md), [threat model](docs/THREAT_MODEL.md), and
-[measured alpha-readiness report](docs/ALPHA_READINESS_REPORT.md).
-
-## Quickstart
-
-Requirements: Docker with Compose, or Node 20+, pnpm 11, Python 3.12-3.13, and uv.
+Requirements: Docker with Compose. Copy the example configuration, replace the
+local placeholder secrets, then start the six-service stack:
 
 ```bash
 cp .env.example .env
 docker compose up --build
 ```
 
-Then open <http://localhost:3000>. For native development:
+Open <http://localhost:3000> and choose **Try a sample EEG**. Docker execution could
+not be repeated on the workstation used for this release preparation, so operators
+must run the exact container and restart checks in
+[PUBLIC_ALPHA_DEPLOYMENT.md](docs/PUBLIC_ALPHA_DEPLOYMENT.md) before inviting users.
+
+For native development with Python 3.12–3.13, Node 20+, pnpm 11, and uv:
 
 ```bash
 make install
+cp .env.example .env
+# In .env use SQLite, local object storage, and WORKER_EAGER=true.
 make migrate
 make seed
 make dev
 ```
 
-Run the quality gates:
+`make dev` prints the API, web, and worker commands to run in separate terminals.
+`make seed-synthetic` is the offline, no-human-data fallback.
+
+## Supported formats
+
+| Format | Public acceptance source |
+|---|---|
+| EDF / EDF+ | PhysioNet Sleep-EDF Expanded 1.0.0 |
+| BioSemi BDF | HBN-EEG challenge R1 public BDF derivative |
+| BrainVision | OpenNeuro ds006547 v1.0.0 |
+| EEGLAB `.set` / optional `.fdt` | OpenNeuro ds004362 v1.0.0 |
+| MNE FIF | Official MNE testing-data fixture |
+| Configured CSV / TSV | Schema wizard and generated acceptance fixture |
+| BIDS EEG | Foundation exercised with the OpenNeuro BrainVision subset |
+
+These are tested compatibility claims, not support for every producer variant.
+Large public recordings remain outside Git and are checksum-verified through
+`testdata/manifest.yaml`; see the [real-data plan](docs/REAL_DATA_TEST_PLAN.md).
+
+## What the alpha supports
+
+- private workspace → project → recording organization;
+- immutable source uploads and durable background ingestion;
+- viewport-bounded Canvas waveform navigation for long recordings;
+- imported events, attributed annotations, and manual bad-channel decisions;
+- transparent QC heuristics kept separate from human review;
+- immutable processing runs and annotations/QC/provenance exports;
+- returning to existing recordings through **Open workspace**;
+- privacy-bounded product evidence and in-app feedback.
+
+Source files, raw samples, filenames, subject fields, clinical notes, and annotation
+contents are excluded from product analytics. Do not upload identifiable or
+regulated health information to a public alpha. The software does not claim HIPAA
+compliance, and it does not send signal data to external AI services.
+
+## Architecture and deployment
+
+Next.js renders the viewer. FastAPI applies workspace authorization and serves
+bounded envelopes. Celery workers use MNE, write immutable Zarr arrays and
+pyramids, and persist job/provenance state in PostgreSQL. Source uploads and exports
+use private S3-compatible storage; Redis is a broker, not a source of truth.
+
+The current canonical Zarr store is a shared POSIX filesystem. Every API and worker
+replica must mount the same durable network volume; S3 alone is not sufficient for
+canonical data in v0.1.0-alpha. Read the
+[technical design](docs/TECH_DESIGN.md), [deployment guide](docs/PUBLIC_ALPHA_DEPLOYMENT.md),
+[analytics contract](docs/PRODUCT_ANALYTICS.md), and
+[public-alpha report](docs/USER_READY_ALPHA_REPORT.md).
+
+## Development and verification
 
 ```bash
 make lint
 make typecheck
 make test
+make test-e2e
 make build
+make real-data
 ```
 
-## Format support
+CI also checks migrations, Python and JavaScript dependency advisories, container
+builds, and the pinned real-data matrix. Product-media capture is reproducible with
+`pnpm --filter @neuroworkspace/web media:capture`; see
+[PRODUCT_MEDIA.md](docs/PRODUCT_MEDIA.md).
 
-| Format | Planned P0 | Real-data acceptance |
-|---|---:|---|
-| EDF / EDF+ | yes | PhysioNet Sleep-EDF Expanded 1.0.0 |
-| BioSemi BDF | yes | HBN-EEG challenge R1 public BDF derivative |
-| BrainVision `.vhdr/.vmrk/.eeg` | yes | OpenNeuro ds006547 v1.0.0 |
-| EEGLAB `.set` / optional `.fdt` | yes | OpenNeuro ds004362 v1.0.0 |
-| MNE FIF | yes | official MNE testing-data fixture |
-| configured CSV/TSV | yes | schema wizard and generated fixture |
-| BIDS EEG dataset | foundation/P1 | OpenNeuro ds004362 subset via MNE-BIDS |
+## Contributing and security
 
-No table cell implies untested compatibility. Fetch scripts keep large recordings
-outside Git and verify checksums; see [real-data plan](docs/REAL_DATA_TEST_PLAN.md).
+Read [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md),
+and the relevant ADR before changing a core contract. New format claims require a
+license-reviewed, checksum-pinned public file plus independent acceptance tests.
+Report suspected vulnerabilities through [SECURITY.md](SECURITY.md), not a public
+issue.
 
-## Data and privacy boundary
-
-Do not upload identifiable or regulated health data to an alpha deployment. The
-software does not claim HIPAA compliance and QC flags are automated suggestions for
-review, not medical conclusions. Signal data is never sent to external AI services
-or used for model training. See [security/privacy](docs/SECURITY_PRIVACY.md) and
-[HIPAA gaps](docs/HIPAA_GAP_ANALYSIS.md).
-
-## Contributing
-
-Read [CONTRIBUTING.md](CONTRIBUTING.md), the [roadmap](docs/ROADMAP.md), and the
-relevant ADR before changing a core contract. New format claims require a public,
-license-reviewed, checksum-pinned real file plus tests. Security issues should be
-reported through [SECURITY.md](SECURITY.md), not a public issue.
-
-The code is licensed under Apache-2.0; external datasets retain their own terms.
+The code is licensed under Apache-2.0. External datasets retain their own terms.

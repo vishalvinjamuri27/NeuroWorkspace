@@ -99,20 +99,36 @@ def main() -> None:
     stop_monitor.set()
     monitor.join()
 
-    durations: list[float] = []
-    for index in range(args.queries):
-        query_start = (index / args.queries) * max(0, args.duration_seconds - 10)
+    visible_channels = list(range(min(args.channels, 32)))
+
+    def timed_query(start: float, duration: float) -> tuple[float, int]:
         before = time.perf_counter()
         window = store.query(
             version_id,
-            list(range(min(args.channels, 32))),
-            query_start,
-            min(10, args.duration_seconds),
+            visible_channels,
+            start,
+            min(duration, args.duration_seconds),
             1200,
         )
-        durations.append((time.perf_counter() - before) * 1000)
+        elapsed_ms = (time.perf_counter() - before) * 1000
         if len(window.bin_start_seconds) > 1800:
             raise RuntimeError("viewport response exceeded the point budget")
+        return elapsed_ms, len(window.bin_start_seconds)
+
+    first_request_ms, response_bins = timed_query(0, 10)
+    repeated_request_ms, _ = timed_query(0, 10)
+    pan_latencies = [
+        timed_query(
+            min(max(0, args.duration_seconds - 10), index * 2.5),
+            10,
+        )[0]
+        for index in range(8)
+    ]
+    zoom_latencies = [timed_query(0, duration)[0] for duration in (20, 10, 5, 2.5)]
+    durations: list[float] = []
+    for index in range(args.queries):
+        query_start = (index / args.queries) * max(0, args.duration_seconds - 10)
+        durations.append(timed_query(query_start, 10)[0])
 
     version_path = store.version_path(version_id)
     stored_bytes = sum(path.stat().st_size for path in version_path.rglob("*") if path.is_file())
@@ -131,6 +147,14 @@ def main() -> None:
         "canonical_stored_bytes": stored_bytes,
         "storage_ratio_to_float32_raw": round(stored_bytes / logical_raw_bytes, 4),
         "pyramid_levels": manifest.pyramid_levels,
+        "visible_channels": len(visible_channels),
+        "response_bins": response_bins,
+        "first_waveform_request_ms": round(first_request_ms, 3),
+        "repeated_waveform_request_ms": round(repeated_request_ms, 3),
+        "pan_latency_ms_p50": round(statistics.median(pan_latencies), 3),
+        "pan_latency_ms_p95": round(percentile(pan_latencies, 0.95), 3),
+        "zoom_latency_ms_p50": round(statistics.median(zoom_latencies), 3),
+        "zoom_latency_ms_p95": round(percentile(zoom_latencies, 0.95), 3),
         "waveform_queries": args.queries,
         "waveform_latency_ms_p50": round(statistics.median(durations), 3),
         "waveform_latency_ms_p95": round(percentile(durations, 0.95), 3),
