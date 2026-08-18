@@ -191,8 +191,8 @@ class Event(Base):
 class Annotation(TimestampMixin, Base):
     __tablename__ = "annotations"
     __table_args__ = (
-        CheckConstraint("onset_seconds >= 0"),
-        CheckConstraint("duration_seconds >= 0"),
+        CheckConstraint("onset_seconds >= 0", name="annotations_onset_seconds_check"),
+        CheckConstraint("duration_seconds >= 0", name="annotations_duration_seconds_check"),
         Index("ix_annotations_recording_onset", "recording_id", "onset_seconds"),
     )
 
