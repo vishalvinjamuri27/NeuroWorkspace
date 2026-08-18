@@ -19,7 +19,6 @@ dependencies = [
   "mne>=1.12,<1.13",
   "mne-bids>=0.19,<0.20",
   "numpy>=2.2,<3",
-  "orjson>=3.10,<4",
   "PyJWT[crypto]>=2.10,<3",
   "psutil>=7,<8",
   "psycopg[binary]>=3.2,<4",
@@ -44,6 +43,7 @@ dev = [
   "pytest-asyncio>=1.1,<2",
   "pytest-cov>=6.2,<8",
   "ruff>=0.12,<1",
+  "types-psutil>=7.0,<8",
 ]
 
 [tool.hatch.build.targets.wheel]

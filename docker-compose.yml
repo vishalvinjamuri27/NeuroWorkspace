@@ -31,6 +31,7 @@ services:
     environment:
       MINIO_ROOT_USER: neuroworkspace
       MINIO_ROOT_PASSWORD: change-me-in-non-local-environments
+      MINIO_API_CORS_ALLOW_ORIGIN: http://localhost:3000
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -53,6 +54,8 @@ services:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
       minio: { condition: service_healthy }
+    volumes:
+      - canonical-data:/data/objects/canonical
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready')"]
       interval: 10s
@@ -68,6 +71,8 @@ services:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
       minio: { condition: service_healthy }
+    volumes:
+      - canonical-data:/data/objects/canonical
 
   web:
     build:
@@ -86,4 +91,4 @@ volumes:
   postgres-data:
   redis-data:
   minio-data:
-
+  canonical-data:

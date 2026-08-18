@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import csv
 import hashlib
+from dataclasses import asdict
 from pathlib import Path
 
+import mne
 import numpy as np
 import pytest
+from mne_bids import BIDSPath, get_entity_vals, read_raw_bids
 
 from neuro_workspace.adapters import BDFAdapter, BrainVisionAdapter, EEGLABAdapter, FIFAdapter
 from neuro_workspace.adapters.mne_adapter import EDFAdapter
+from neuro_workspace.exports import export_provenance_json
 from neuro_workspace.ingestion import ingest_recording
 from neuro_workspace.signal_store import LocalZarrSignalStore
 
@@ -75,7 +80,7 @@ def test_physionet_sleep_edf_metadata_windows_and_annotations(
         ),
         (
             EEGLABAdapter(),
-            ["openneuro-ds004362/sub-001_task-motion_run-1_eeg.set"],
+            ["openneuro-ds004362-bids/sub-001/eeg/sub-001_task-motion_run-1_eeg.set"],
             ["affd2c020dab82aa2bd38363fc6f813fbb7239c54bccd7b70c35a23bd75b71b7"],
             64,
             160.0,
@@ -113,6 +118,7 @@ def test_physionet_sleep_edf_metadata_windows_and_annotations(
 )
 def test_public_format_metadata_and_lazy_window(
     real_data_root: Path,
+    tmp_path: Path,
     adapter: BDFAdapter | EEGLABAdapter | BrainVisionAdapter | FIFAdapter,
     relative_paths: list[str],
     hashes: list[str],
@@ -132,3 +138,71 @@ def test_public_format_metadata_and_lazy_window(
     first = next(adapter.iter_signal_chunks(paths, min(samples, 4096)))
     assert first.values.shape == (channels, min(samples, 4096))
     assert np.isfinite(first.values).all()
+
+    store = LocalZarrSignalStore(tmp_path / "canonical")
+    result = ingest_recording(
+        adapter=adapter,
+        assets=paths,
+        import_config=None,
+        version_id=f"real-{adapter.format_id}",
+        signal_store=store,
+        source_hashes=tuple(hashes),
+        build_version="real-data-test",
+        qc_window_seconds=30,
+    )
+    assert result.manifest.sample_count == samples
+    assert len(result.qc) == channels
+    viewport = store.query(
+        f"real-{adapter.format_id}",
+        list(range(min(3, channels))),
+        0,
+        min(metadata.duration_seconds, 30),
+        1200,
+    )
+    assert len(viewport.channels) == min(3, channels)
+    assert len(viewport.bin_start_seconds) <= 1800
+
+    provenance_path = tmp_path / f"{adapter.format_id}-provenance.json"
+    export_provenance_json(
+        recording={"format_id": adapter.format_id, "source_hashes": hashes},
+        versions=[asdict(result.manifest)],
+        processing_runs=[],
+        destination=provenance_path,
+    )
+    exported = provenance_path.read_text(encoding="utf-8")
+    assert adapter.format_id in exported
+    assert hashes[0] in exported
+
+
+@pytest.mark.real_data
+def test_openneuro_bids_subset_discovery_sidecars_and_events(real_data_root: Path) -> None:
+    root = real_data_root / "openneuro-ds004362-bids"
+    assert get_entity_vals(root, "subject") == ["001"]
+    channels_path = root / "sub-001/eeg/sub-001_task-motion_run-1_channels.tsv"
+    with channels_path.open(encoding="utf-8", newline="") as stream:
+        source_channels = list(csv.DictReader(stream, delimiter="\t"))
+    # This published snapshot labels every channel type as n/a. Keep that
+    # scientifically important source limitation visible in the acceptance test.
+    assert len(source_channels) == 64
+    assert {row["type"] for row in source_channels} == {"n/a"}
+    bids_path = BIDSPath(
+        root=root,
+        subject="001",
+        task="motion",
+        run="1",
+        datatype="eeg",
+        suffix="eeg",
+        extension=".set",
+        check=True,
+    )
+    with pytest.warns(RuntimeWarning) as warning_records, mne.use_log_level("ERROR"):
+        raw = read_raw_bids(bids_path, verbose=False)
+    assert any("No BIDS -> MNE mapping" in str(item.message) for item in warning_records)
+    try:
+        assert len(raw.ch_names) == 64
+        assert raw.info["sfreq"] == pytest.approx(160)
+        assert raw.n_times == 9_760
+        assert len(raw.annotations) == 1
+        assert raw.get_channel_types() == ["misc"] * 64
+    finally:
+        raw.close()

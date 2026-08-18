@@ -75,9 +75,7 @@ def _edf_source_sampling_rates(path: Path) -> tuple[float, ...]:
             raise ValidationError("malformed_header", "The EDF/BDF timebase is invalid.")
         signal_header = stream.read(channel_count * 256)
     labels = tuple(
-        signal_header[index * 16 : (index + 1) * 16]
-        .decode("ascii", errors="replace")
-        .strip()
+        signal_header[index * 16 : (index + 1) * 16].decode("ascii", errors="replace").strip()
         for index in range(channel_count)
     )
     samples_offset = channel_count * (16 + 80 + 8 + 8 + 8 + 8 + 8 + 80)
@@ -272,9 +270,7 @@ class EDFAdapter(MNEAdapter):
         primary = self.primary_path(paths)
         with tempfile.TemporaryDirectory(prefix="neuro-workspace-edf-") as directory:
             preload_path = str(Path(directory) / "signals.dat")
-            raw = mne.io.read_raw_edf(
-                primary, preload=preload_path, verbose="ERROR"
-            )
+            raw = mne.io.read_raw_edf(primary, preload=preload_path, verbose="ERROR")
             try:
                 self._attach_companion_annotations(raw, paths, primary)
                 for start in range(0, int(raw.n_times), chunk_samples):

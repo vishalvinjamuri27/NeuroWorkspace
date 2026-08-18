@@ -64,19 +64,67 @@ samples:
     snapshot: 1.0.0
     doi: 10.18112/openneuro.ds004362.v1.0.0
     files:
-      - path: openneuro-ds004362/sub-001_task-motion_run-1_eeg.set
+      - path: openneuro-ds004362-bids/dataset_description.json
+        url: https://s3.amazonaws.com/openneuro.org/ds004362/dataset_description.json
+        role: sidecar
+        format: BIDS
+        size_bytes: 908
+        sha256: a4f831bf4403789f5e398f4f853627956219e9c08b93d4d6b36646d952cf933a
+      - path: openneuro-ds004362-bids/participants.json
+        url: https://s3.amazonaws.com/openneuro.org/ds004362/participants.json
+        role: sidecar
+        format: BIDS
+        size_bytes: 447
+        sha256: 2c116bf3164dfd5f13c4fc7cb385320e386d1e7402e69644756039ceb63067d9
+      - path: openneuro-ds004362-bids/participants.tsv
+        url: https://s3.amazonaws.com/openneuro.org/ds004362/participants.tsv
+        role: sidecar
+        format: BIDS
+        size_bytes: 1720
+        sha256: 55ea427b5f0b53d02be407f569146b4789322071347f166ceb5b837667a07e6d
+      - path: openneuro-ds004362-bids/sub-001/eeg/sub-001_task-motion_run-1_channels.tsv
+        url: https://s3.amazonaws.com/openneuro.org/ds004362/sub-001/eeg/sub-001_task-motion_run-1_channels.tsv
+        role: sidecar
+        format: BIDS
+        size_bytes: 752
+        sha256: 869a0220ce4e94b1aaa4f99a92e55fa40fc43b135e25389feb8e1e12005dd634
+      - path: openneuro-ds004362-bids/sub-001/eeg/sub-001_task-motion_run-1_coordsystem.json
+        url: https://s3.amazonaws.com/openneuro.org/ds004362/sub-001/eeg/sub-001_task-motion_run-1_coordsystem.json
+        role: sidecar
+        format: BIDS
+        size_bytes: 97
+        sha256: 38cbd743cd80f8243716dcfe326138c49c124855551fbed50f935724a5ee71d3
+      - path: openneuro-ds004362-bids/sub-001/eeg/sub-001_task-motion_run-1_eeg.json
+        url: https://s3.amazonaws.com/openneuro.org/ds004362/sub-001/eeg/sub-001_task-motion_run-1_eeg.json
+        role: sidecar
+        format: BIDS
+        size_bytes: 479
+        sha256: 37976029827423a7b9656c447ed9be63fe7c8a07c206917158d721bb47be28de
+      - path: openneuro-ds004362-bids/sub-001/eeg/sub-001_task-motion_run-1_eeg.set
         url: https://s3.amazonaws.com/openneuro.org/ds004362/sub-001/eeg/sub-001_task-motion_run-1_eeg.set
         role: signal
         format: EEGLAB
         size_bytes: 3215672
         sha256: affd2c020dab82aa2bd38363fc6f813fbb7239c54bccd7b70c35a23bd75b71b7
+      - path: openneuro-ds004362-bids/sub-001/eeg/sub-001_task-motion_run-1_electrodes.tsv
+        url: https://s3.amazonaws.com/openneuro.org/ds004362/sub-001/eeg/sub-001_task-motion_run-1_electrodes.tsv
+        role: sidecar
+        format: BIDS
+        size_bytes: 2027
+        sha256: 1349bb454d8d8e350f6c9e0fcc52b90d3dbd6693a03fdb386a8fd3268cc2ff59
+      - path: openneuro-ds004362-bids/sub-001/eeg/sub-001_task-motion_run-1_events.tsv
+        url: https://s3.amazonaws.com/openneuro.org/ds004362/sub-001/eeg/sub-001_task-motion_run-1_events.tsv
+        role: sidecar
+        format: BIDS
+        size_bytes: 55
+        sha256: e66fb3fccce06060b5eb5cfdf5ed4fca63d85fe724113bcf4c75c98809f696b9
     license_access_terms: CC0, as declared in dataset_description.json
     expected:
       channel_count: 64
       sampling_frequency_hz: 160
       sample_count: 9760
       annotation_count: 1
-    purpose: Real EEGLAB embedded or external FDT relationship and events
+    purpose: Real EEGLAB embedded data plus BIDS discovery, sidecars, channels, and events
   public_biosemi_bdf:
     status: pinned
     dataset: HBN-EEG EEG Foundation Challenge R1 mini BDF

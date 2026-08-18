@@ -18,12 +18,18 @@ export function Inspector({
   annotations,
   qc,
   onJump,
+  editable,
+  onEditAnnotation,
+  onDeleteAnnotation,
 }: {
   recording: Recording;
   events: Event[];
   annotations: Annotation[];
   qc: QCResult | null;
   onJump: (seconds: number) => void;
+  editable: boolean;
+  onEditAnnotation: (annotation: Annotation) => void;
+  onDeleteAnnotation: (annotation: Annotation) => void;
 }) {
   const [tab, setTab] = useState<Tab>("events");
   const metadata = recording.safe_metadata as Record<string, unknown>;
@@ -80,16 +86,25 @@ export function Inspector({
           <div className="data-list">
             {annotations.length ? (
               annotations.map((annotation) => (
-                <button
-                  key={annotation.id}
-                  onClick={() => onJump(annotation.onset_seconds)}
-                >
-                  <time>{formatDuration(annotation.onset_seconds)}</time>
-                  <strong>{annotation.label}</strong>
-                  <span>
-                    rev {annotation.revision} · {annotation.provenance_kind}
-                  </span>
-                </button>
+                <div className="annotation-row" key={annotation.id}>
+                  <button onClick={() => onJump(annotation.onset_seconds)}>
+                    <time>{formatDuration(annotation.onset_seconds)}</time>
+                    <strong>{annotation.label}</strong>
+                    <span>
+                      rev {annotation.revision} · {annotation.provenance_kind}
+                    </span>
+                  </button>
+                  {editable && (
+                    <div className="annotation-actions">
+                      <button onClick={() => onEditAnnotation(annotation)}>
+                        Edit
+                      </button>
+                      <button onClick={() => onDeleteAnnotation(annotation)}>
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
               ))
             ) : (
               <Empty text="Select a time region to create the first annotation." />

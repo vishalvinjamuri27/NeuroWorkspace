@@ -41,6 +41,43 @@ class WorkspaceResponse(ORMModel):
     created_at: datetime
 
 
+class MembershipUpsert(BaseModel):
+    email: str = Field(min_length=3, max_length=320)
+    role: Role
+
+    @field_validator("role")
+    @classmethod
+    def reject_invalid_role(cls, value: Role) -> Role:
+        if value not in {Role.OWNER, Role.ADMIN, Role.MEMBER, Role.VIEWER}:
+            raise ValueError("invalid workspace role")
+        return value
+
+
+class MembershipRoleUpdate(BaseModel):
+    role: Role
+
+
+class MembershipResponse(BaseModel):
+    id: str
+    workspace_id: str
+    user: UserResponse
+    role: Role
+    is_active: bool
+    created_at: datetime
+
+
+class WorkspaceMetricsResponse(BaseModel):
+    members: int
+    recordings_uploaded: int
+    recordings_ready: int
+    recordings_failed: int
+    annotations_created: int
+    exports_created: int
+    viewer_opens: int
+    membership_changes: int
+    ingestion_errors_by_format: dict[str, int]
+
+
 class ProjectCreate(BaseModel):
     name: str = Field(min_length=1, max_length=160)
     description: str = Field(default="", max_length=2000)

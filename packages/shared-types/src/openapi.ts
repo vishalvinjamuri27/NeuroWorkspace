@@ -4,1824 +4,2104 @@
  */
 
 export interface paths {
-  "/api/annotations/{annotation_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/annotations/{annotation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Annotation */
+        delete: operations["delete_annotation_api_annotations__annotation_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Annotation */
+        patch: operations["update_annotation_api_annotations__annotation_id__patch"];
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    /** Delete Annotation */
-    delete: operations["delete_annotation_api_annotations__annotation_id__delete"];
-    options?: never;
-    head?: never;
-    /** Update Annotation */
-    patch: operations["update_annotation_api_annotations__annotation_id__patch"];
-    trace?: never;
-  };
-  "/api/demo/recording": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/demo/recording": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Demo Recording */
+        get: operations["get_demo_recording_api_demo_recording_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Get Demo Recording */
-    get: operations["get_demo_recording_api_demo_recording_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/exports/{export_id}/content": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/exports/{export_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download Export */
+        get: operations["download_export_api_exports__export_id__content_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Download Export */
-    get: operations["download_export_api_exports__export_id__content_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/jobs/{job_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Job */
+        get: operations["get_job_api_jobs__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Get Job */
-    get: operations["get_job_api_jobs__job_id__get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/projects/{project_id}/recordings": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/projects/{project_id}/recordings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Recordings */
+        get: operations["list_recordings_api_projects__project_id__recordings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List Recordings */
-    get: operations["list_recordings_api_projects__project_id__recordings_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/projects/{project_id}/uploads": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/projects/{project_id}/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Upload */
+        post: operations["create_upload_api_projects__project_id__uploads_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Create Upload */
-    post: operations["create_upload_api_projects__project_id__uploads_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/recordings/{recording_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/recordings/{recording_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Recording */
+        get: operations["get_recording_api_recordings__recording_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Recording */
+        delete: operations["delete_recording_api_recordings__recording_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Get Recording */
-    get: operations["get_recording_api_recordings__recording_id__get"];
-    put?: never;
-    post?: never;
-    /** Delete Recording */
-    delete: operations["delete_recording_api_recordings__recording_id__delete"];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/recordings/{recording_id}/annotations": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/recordings/{recording_id}/annotations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Annotations */
+        get: operations["list_annotations_api_recordings__recording_id__annotations_get"];
+        put?: never;
+        /** Create Annotation */
+        post: operations["create_annotation_api_recordings__recording_id__annotations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List Annotations */
-    get: operations["list_annotations_api_recordings__recording_id__annotations_get"];
-    put?: never;
-    /** Create Annotation */
-    post: operations["create_annotation_api_recordings__recording_id__annotations_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/recordings/{recording_id}/bad-channels/{channel_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/recordings/{recording_id}/bad-channels/{channel_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set Bad Channel */
+        put: operations["set_bad_channel_api_recordings__recording_id__bad_channels__channel_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    /** Set Bad Channel */
-    put: operations["set_bad_channel_api_recordings__recording_id__bad_channels__channel_id__put"];
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/recordings/{recording_id}/channels": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/recordings/{recording_id}/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Channels */
+        get: operations["list_channels_api_recordings__recording_id__channels_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List Channels */
-    get: operations["list_channels_api_recordings__recording_id__channels_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/recordings/{recording_id}/events": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/recordings/{recording_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Events */
+        get: operations["list_events_api_recordings__recording_id__events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List Events */
-    get: operations["list_events_api_recordings__recording_id__events_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/recordings/{recording_id}/exports": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/recordings/{recording_id}/exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Export */
+        post: operations["create_export_api_recordings__recording_id__exports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Create Export */
-    post: operations["create_export_api_recordings__recording_id__exports_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/recordings/{recording_id}/processing-runs": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/recordings/{recording_id}/processing-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Processing Runs */
+        get: operations["list_processing_runs_api_recordings__recording_id__processing_runs_get"];
+        put?: never;
+        /** Create Processing Run */
+        post: operations["create_processing_run_api_recordings__recording_id__processing_runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List Processing Runs */
-    get: operations["list_processing_runs_api_recordings__recording_id__processing_runs_get"];
-    put?: never;
-    /** Create Processing Run */
-    post: operations["create_processing_run_api_recordings__recording_id__processing_runs_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/recordings/{recording_id}/qc": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/recordings/{recording_id}/qc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Qc */
+        get: operations["get_qc_api_recordings__recording_id__qc_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Get Qc */
-    get: operations["get_qc_api_recordings__recording_id__qc_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/recordings/{recording_id}/waveform": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/recordings/{recording_id}/waveform": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Waveform */
+        get: operations["get_waveform_api_recordings__recording_id__waveform_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Get Waveform */
-    get: operations["get_waveform_api_recordings__recording_id__waveform_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/session": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Session */
+        get: operations["read_session_api_session_get"];
+        put?: never;
+        post?: never;
+        /** Delete Session */
+        delete: operations["delete_session_api_session_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Read Session */
-    get: operations["read_session_api_session_get"];
-    put?: never;
-    post?: never;
-    /** Delete Session */
-    delete: operations["delete_session_api_session_delete"];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/session/dev": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/session/dev": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Dev Session */
+        post: operations["create_dev_session_api_session_dev_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Create Dev Session */
-    post: operations["create_dev_session_api_session_dev_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/uploads/{upload_id}/assets/{asset_id}/content": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/uploads/{upload_id}/assets/{asset_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Upload Local Content */
+        put: operations["upload_local_content_api_uploads__upload_id__assets__asset_id__content_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    /** Upload Local Content */
-    put: operations["upload_local_content_api_uploads__upload_id__assets__asset_id__content_put"];
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/uploads/{upload_id}/complete": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/uploads/{upload_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete Upload */
+        post: operations["complete_upload_api_uploads__upload_id__complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Complete Upload */
-    post: operations["complete_upload_api_uploads__upload_id__complete_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/workspaces": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/workspaces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Workspaces */
+        get: operations["list_workspaces_api_workspaces_get"];
+        put?: never;
+        /** Create Workspace */
+        post: operations["create_workspace_api_workspaces_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List Workspaces */
-    get: operations["list_workspaces_api_workspaces_get"];
-    put?: never;
-    /** Create Workspace */
-    post: operations["create_workspace_api_workspaces_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/workspaces/{workspace_id}/projects": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/workspaces/{workspace_id}/memberships": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Memberships */
+        get: operations["list_memberships_api_workspaces__workspace_id__memberships_get"];
+        /** Upsert Membership */
+        put: operations["upsert_membership_api_workspaces__workspace_id__memberships_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List Projects */
-    get: operations["list_projects_api_workspaces__workspace_id__projects_get"];
-    put?: never;
-    /** Create Project */
-    post: operations["create_project_api_workspaces__workspace_id__projects_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
+    "/api/workspaces/{workspace_id}/memberships/{membership_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Membership */
+        delete: operations["delete_membership_api_workspaces__workspace_id__memberships__membership_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Membership */
+        patch: operations["update_membership_api_workspaces__workspace_id__memberships__membership_id__patch"];
+        trace?: never;
+    };
+    "/api/workspaces/{workspace_id}/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Workspace Metrics
+         * @description Return coarse, non-sensitive product signals to workspace operators.
+         */
+        get: operations["get_workspace_metrics_api_workspaces__workspace_id__metrics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workspaces/{workspace_id}/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Projects */
+        get: operations["list_projects_api_workspaces__workspace_id__projects_get"];
+        put?: never;
+        /** Create Project */
+        post: operations["create_project_api_workspaces__workspace_id__projects_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    /** AnnotationCreate */
-    AnnotationCreate: {
-      /**
-       * Description
-       * @default
-       */
-      description: string;
-      /**
-       * Duration Seconds
-       * @default 0
-       */
-      duration_seconds: number;
-      /** Label */
-      label: string;
-      /** Onset Seconds */
-      onset_seconds: number;
+    schemas: {
+        /** AnnotationCreate */
+        AnnotationCreate: {
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Duration Seconds
+             * @default 0
+             */
+            duration_seconds: number;
+            /** Label */
+            label: string;
+            /** Onset Seconds */
+            onset_seconds: number;
+        };
+        /** AnnotationDelete */
+        AnnotationDelete: {
+            /** Revision */
+            revision: number;
+        };
+        /** AnnotationResponse */
+        AnnotationResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Creator Id */
+            creator_id: string;
+            /** Description */
+            description: string;
+            /** Duration Seconds */
+            duration_seconds: number;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Onset Seconds */
+            onset_seconds: number;
+            /** Provenance Kind */
+            provenance_kind: string;
+            /** Recording Id */
+            recording_id: string;
+            /** Revision */
+            revision: number;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Updater Id */
+            updater_id: string;
+            /** Version Id */
+            version_id: string | null;
+        };
+        /** AnnotationUpdate */
+        AnnotationUpdate: {
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Duration Seconds */
+            duration_seconds: number;
+            /** Label */
+            label: string;
+            /** Onset Seconds */
+            onset_seconds: number;
+            /** Revision */
+            revision: number;
+        };
+        /**
+         * AssetRole
+         * @enum {string}
+         */
+        AssetRole: "primary" | "header" | "marker" | "data" | "sidecar" | "annotations";
+        /** BadChannelResponse */
+        BadChannelResponse: {
+            /** Actor Id */
+            actor_id: string;
+            /** Channel Id */
+            channel_id: string;
+            /** Id */
+            id: string;
+            /** Reason */
+            reason: string;
+            /** Revision */
+            revision: number;
+            /** State */
+            state: string;
+        };
+        /** BadChannelUpdate */
+        BadChannelUpdate: {
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "confirmed_bad" | "confirmed_good";
+        };
+        /** Body_upload_local_content_api_uploads__upload_id__assets__asset_id__content_put */
+        Body_upload_local_content_api_uploads__upload_id__assets__asset_id__content_put: {
+            /** File */
+            file: string;
+        };
+        /** CSVConfigRequest */
+        CSVConfigRequest: {
+            /** Channel Columns */
+            channel_columns: string[];
+            /** Channel Names */
+            channel_names: string[];
+            /** Channel Types */
+            channel_types?: string[];
+            /**
+             * Delimiter
+             * @default ,
+             */
+            delimiter: string;
+            /** Sampling Frequency Hz */
+            sampling_frequency_hz?: number | null;
+            /** Time Column */
+            time_column?: string | null;
+            /** Units */
+            units: string[];
+        };
+        /** ChannelResponse */
+        ChannelResponse: {
+            /** Channel Index */
+            channel_index: number;
+            /** Channel Type */
+            channel_type: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Source Name */
+            source_name: string;
+            /** Source Sampling Frequency Hz */
+            source_sampling_frequency_hz: number | null;
+            /** Source Unit */
+            source_unit: string | null;
+            /** Unit */
+            unit: string;
+        };
+        /** DevSessionRequest */
+        DevSessionRequest: {
+            /** Display Name */
+            display_name: string;
+            /** Email */
+            email: string;
+        };
+        /** EventResponse */
+        EventResponse: {
+            /** Code */
+            code: string | null;
+            /** Duration Seconds */
+            duration_seconds: number;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Onset Seconds */
+            onset_seconds: number;
+        };
+        /** ExportCreate */
+        ExportCreate: {
+            /**
+             * Format Id
+             * @enum {string}
+             */
+            format_id: "annotations_csv" | "provenance_json" | "qc_json";
+        };
+        /** ExportResponse */
+        ExportResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Format Id */
+            format_id: string;
+            /** Id */
+            id: string;
+            /** Loss Notes */
+            loss_notes: string[];
+            /** Recording Id */
+            recording_id: string;
+            /** Sha256 */
+            sha256: string | null;
+            /** Size Bytes */
+            size_bytes: number | null;
+            /** Status */
+            status: string;
+            /** Version Id */
+            version_id: string;
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
+        /** JobResponse */
+        JobResponse: {
+            /** Attempt */
+            attempt: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error Code */
+            error_code: string | null;
+            /** Error Message */
+            error_message: string | null;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Progress */
+            progress: number;
+            /** Stage */
+            stage: string;
+            /** Status */
+            status: string;
+            /** Subject Id */
+            subject_id: string;
+            /** Subject Type */
+            subject_type: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** MembershipResponse */
+        MembershipResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Is Active */
+            is_active: boolean;
+            role: components["schemas"]["Role"];
+            user: components["schemas"]["UserResponse"];
+            /** Workspace Id */
+            workspace_id: string;
+        };
+        /** MembershipRoleUpdate */
+        MembershipRoleUpdate: {
+            role: components["schemas"]["Role"];
+        };
+        /** MembershipUpsert */
+        MembershipUpsert: {
+            /** Email */
+            email: string;
+            role: components["schemas"]["Role"];
+        };
+        /** ProcessingRunCreate */
+        ProcessingRunCreate: {
+            /**
+             * Operation Id
+             * @constant
+             */
+            operation_id: "average_reference";
+            /** Parameters */
+            parameters: {
+                [key: string]: unknown;
+            };
+        };
+        /** ProcessingRunResponse */
+        ProcessingRunResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Input Version Id */
+            input_version_id: string;
+            /** Job Id */
+            job_id: string;
+            /** Operation Id */
+            operation_id: string;
+            /** Operation Version */
+            operation_version: string;
+            /** Output Version Id */
+            output_version_id: string | null;
+            /** Parameters */
+            parameters: {
+                [key: string]: unknown;
+            };
+            /** Recording Id */
+            recording_id: string;
+            /** Status */
+            status: string;
+        };
+        /** ProjectCreate */
+        ProjectCreate: {
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Name */
+            name: string;
+        };
+        /** ProjectResponse */
+        ProjectResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Workspace Id */
+            workspace_id: string;
+        };
+        /** RecordingResponse */
+        RecordingResponse: {
+            /** Active Version Id */
+            active_version_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error Code */
+            error_code: string | null;
+            /** Error Message */
+            error_message: string | null;
+            /** Format Id */
+            format_id: string | null;
+            /** Id */
+            id: string;
+            /** Is Demo */
+            is_demo: boolean;
+            /** Name */
+            name: string;
+            /** Project Id */
+            project_id: string;
+            /** Safe Metadata */
+            safe_metadata: {
+                [key: string]: unknown;
+            };
+            /** Source Provenance */
+            source_provenance: {
+                [key: string]: unknown;
+            };
+            /** State */
+            state: string;
+            /** Workspace Id */
+            workspace_id: string;
+        };
+        /**
+         * Role
+         * @enum {string}
+         */
+        Role: "owner" | "admin" | "member" | "viewer";
+        /** SessionResponse */
+        SessionResponse: {
+            user: components["schemas"]["UserResponse"];
+        };
+        /** UploadAssetCreate */
+        UploadAssetCreate: {
+            /** Media Type */
+            media_type?: string | null;
+            /** Name */
+            name: string;
+            /** @default primary */
+            role: components["schemas"]["AssetRole"];
+            /** Size Bytes */
+            size_bytes: number;
+        };
+        /** UploadAssetResponse */
+        UploadAssetResponse: {
+            /** Direct */
+            direct: boolean;
+            /** Id */
+            id: string;
+            role: components["schemas"]["AssetRole"];
+            /** Safe Name */
+            safe_name: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Upload Url */
+            upload_url: string;
+        };
+        /** UploadCompleteResponse */
+        UploadCompleteResponse: {
+            /** Job Id */
+            job_id: string;
+            /** Recording Id */
+            recording_id: string;
+            /** State */
+            state: string;
+        };
+        /** UploadCreate */
+        UploadCreate: {
+            /** Assets */
+            assets: components["schemas"]["UploadAssetCreate"][];
+            csv_config?: components["schemas"]["CSVConfigRequest"] | null;
+            /** Format Hint */
+            format_hint?: ("edf" | "bdf" | "brainvision" | "eeglab" | "fif" | "csv") | null;
+            /** Recording Name */
+            recording_name: string;
+        };
+        /** UploadResponse */
+        UploadResponse: {
+            /** Assets */
+            assets: components["schemas"]["UploadAssetResponse"][];
+            /** Id */
+            id: string;
+            /** Recording Name */
+            recording_name: string;
+            /** Status */
+            status: string;
+        };
+        /** UserResponse */
+        UserResponse: {
+            /** Display Name */
+            display_name: string;
+            /** Email */
+            email: string;
+            /** Id */
+            id: string;
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Context */
+            ctx?: Record<string, never>;
+            /** Input */
+            input?: unknown;
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+        };
+        /** WorkspaceCreate */
+        WorkspaceCreate: {
+            /** Name */
+            name: string;
+        };
+        /** WorkspaceMetricsResponse */
+        WorkspaceMetricsResponse: {
+            /** Annotations Created */
+            annotations_created: number;
+            /** Exports Created */
+            exports_created: number;
+            /** Ingestion Errors By Format */
+            ingestion_errors_by_format: {
+                [key: string]: number;
+            };
+            /** Members */
+            members: number;
+            /** Membership Changes */
+            membership_changes: number;
+            /** Recordings Failed */
+            recordings_failed: number;
+            /** Recordings Ready */
+            recordings_ready: number;
+            /** Recordings Uploaded */
+            recordings_uploaded: number;
+            /** Viewer Opens */
+            viewer_opens: number;
+        };
+        /** WorkspaceResponse */
+        WorkspaceResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            role: components["schemas"]["Role"];
+            /** Slug */
+            slug: string;
+        };
     };
-    /** AnnotationDelete */
-    AnnotationDelete: {
-      /** Revision */
-      revision: number;
-    };
-    /** AnnotationResponse */
-    AnnotationResponse: {
-      /**
-       * Created At
-       * Format: date-time
-       */
-      created_at: string;
-      /** Creator Id */
-      creator_id: string;
-      /** Description */
-      description: string;
-      /** Duration Seconds */
-      duration_seconds: number;
-      /** Id */
-      id: string;
-      /** Label */
-      label: string;
-      /** Onset Seconds */
-      onset_seconds: number;
-      /** Provenance Kind */
-      provenance_kind: string;
-      /** Recording Id */
-      recording_id: string;
-      /** Revision */
-      revision: number;
-      /**
-       * Updated At
-       * Format: date-time
-       */
-      updated_at: string;
-      /** Updater Id */
-      updater_id: string;
-      /** Version Id */
-      version_id: string | null;
-    };
-    /** AnnotationUpdate */
-    AnnotationUpdate: {
-      /**
-       * Description
-       * @default
-       */
-      description: string;
-      /** Duration Seconds */
-      duration_seconds: number;
-      /** Label */
-      label: string;
-      /** Onset Seconds */
-      onset_seconds: number;
-      /** Revision */
-      revision: number;
-    };
-    /**
-     * AssetRole
-     * @enum {string}
-     */
-    AssetRole:
-      | "primary"
-      | "header"
-      | "marker"
-      | "data"
-      | "sidecar"
-      | "annotations";
-    /** BadChannelResponse */
-    BadChannelResponse: {
-      /** Actor Id */
-      actor_id: string;
-      /** Channel Id */
-      channel_id: string;
-      /** Id */
-      id: string;
-      /** Reason */
-      reason: string;
-      /** Revision */
-      revision: number;
-      /** State */
-      state: string;
-    };
-    /** BadChannelUpdate */
-    BadChannelUpdate: {
-      /**
-       * Reason
-       * @default
-       */
-      reason: string;
-      /**
-       * State
-       * @enum {string}
-       */
-      state: "confirmed_bad" | "confirmed_good";
-    };
-    /** Body_upload_local_content_api_uploads__upload_id__assets__asset_id__content_put */
-    Body_upload_local_content_api_uploads__upload_id__assets__asset_id__content_put: {
-      /** File */
-      file: string;
-    };
-    /** CSVConfigRequest */
-    CSVConfigRequest: {
-      /** Channel Columns */
-      channel_columns: string[];
-      /** Channel Names */
-      channel_names: string[];
-      /** Channel Types */
-      channel_types?: string[];
-      /**
-       * Delimiter
-       * @default ,
-       */
-      delimiter: string;
-      /** Sampling Frequency Hz */
-      sampling_frequency_hz?: number | null;
-      /** Time Column */
-      time_column?: string | null;
-      /** Units */
-      units: string[];
-    };
-    /** ChannelResponse */
-    ChannelResponse: {
-      /** Channel Index */
-      channel_index: number;
-      /** Channel Type */
-      channel_type: string;
-      /** Id */
-      id: string;
-      /** Name */
-      name: string;
-      /** Source Name */
-      source_name: string;
-      /** Source Sampling Frequency Hz */
-      source_sampling_frequency_hz: number | null;
-      /** Source Unit */
-      source_unit: string | null;
-      /** Unit */
-      unit: string;
-    };
-    /** DevSessionRequest */
-    DevSessionRequest: {
-      /** Display Name */
-      display_name: string;
-      /** Email */
-      email: string;
-    };
-    /** EventResponse */
-    EventResponse: {
-      /** Code */
-      code: string | null;
-      /** Duration Seconds */
-      duration_seconds: number;
-      /** Id */
-      id: string;
-      /** Label */
-      label: string;
-      /** Onset Seconds */
-      onset_seconds: number;
-    };
-    /** ExportCreate */
-    ExportCreate: {
-      /**
-       * Format Id
-       * @enum {string}
-       */
-      format_id: "annotations_csv" | "provenance_json" | "qc_json";
-    };
-    /** ExportResponse */
-    ExportResponse: {
-      /**
-       * Created At
-       * Format: date-time
-       */
-      created_at: string;
-      /** Format Id */
-      format_id: string;
-      /** Id */
-      id: string;
-      /** Loss Notes */
-      loss_notes: string[];
-      /** Recording Id */
-      recording_id: string;
-      /** Sha256 */
-      sha256: string | null;
-      /** Size Bytes */
-      size_bytes: number | null;
-      /** Status */
-      status: string;
-      /** Version Id */
-      version_id: string;
-    };
-    /** HTTPValidationError */
-    HTTPValidationError: {
-      /** Detail */
-      detail?: components["schemas"]["ValidationError"][];
-    };
-    /** JobResponse */
-    JobResponse: {
-      /** Attempt */
-      attempt: number;
-      /**
-       * Created At
-       * Format: date-time
-       */
-      created_at: string;
-      /** Error Code */
-      error_code: string | null;
-      /** Error Message */
-      error_message: string | null;
-      /** Id */
-      id: string;
-      /** Kind */
-      kind: string;
-      /** Progress */
-      progress: number;
-      /** Stage */
-      stage: string;
-      /** Status */
-      status: string;
-      /** Subject Id */
-      subject_id: string;
-      /** Subject Type */
-      subject_type: string;
-      /**
-       * Updated At
-       * Format: date-time
-       */
-      updated_at: string;
-    };
-    /** ProcessingRunCreate */
-    ProcessingRunCreate: {
-      /**
-       * Operation Id
-       * @constant
-       */
-      operation_id: "average_reference";
-      /** Parameters */
-      parameters: {
-        [key: string]: unknown;
-      };
-    };
-    /** ProcessingRunResponse */
-    ProcessingRunResponse: {
-      /**
-       * Created At
-       * Format: date-time
-       */
-      created_at: string;
-      /** Id */
-      id: string;
-      /** Input Version Id */
-      input_version_id: string;
-      /** Job Id */
-      job_id: string;
-      /** Operation Id */
-      operation_id: string;
-      /** Operation Version */
-      operation_version: string;
-      /** Output Version Id */
-      output_version_id: string | null;
-      /** Parameters */
-      parameters: {
-        [key: string]: unknown;
-      };
-      /** Recording Id */
-      recording_id: string;
-      /** Status */
-      status: string;
-    };
-    /** ProjectCreate */
-    ProjectCreate: {
-      /**
-       * Description
-       * @default
-       */
-      description: string;
-      /** Name */
-      name: string;
-    };
-    /** ProjectResponse */
-    ProjectResponse: {
-      /**
-       * Created At
-       * Format: date-time
-       */
-      created_at: string;
-      /** Description */
-      description: string;
-      /** Id */
-      id: string;
-      /** Name */
-      name: string;
-      /** Workspace Id */
-      workspace_id: string;
-    };
-    /** RecordingResponse */
-    RecordingResponse: {
-      /** Active Version Id */
-      active_version_id: string | null;
-      /**
-       * Created At
-       * Format: date-time
-       */
-      created_at: string;
-      /** Error Code */
-      error_code: string | null;
-      /** Error Message */
-      error_message: string | null;
-      /** Format Id */
-      format_id: string | null;
-      /** Id */
-      id: string;
-      /** Is Demo */
-      is_demo: boolean;
-      /** Name */
-      name: string;
-      /** Project Id */
-      project_id: string;
-      /** Safe Metadata */
-      safe_metadata: {
-        [key: string]: unknown;
-      };
-      /** Source Provenance */
-      source_provenance: {
-        [key: string]: unknown;
-      };
-      /** State */
-      state: string;
-      /** Workspace Id */
-      workspace_id: string;
-    };
-    /**
-     * Role
-     * @enum {string}
-     */
-    Role: "owner" | "admin" | "member" | "viewer";
-    /** SessionResponse */
-    SessionResponse: {
-      user: components["schemas"]["UserResponse"];
-    };
-    /** UploadAssetCreate */
-    UploadAssetCreate: {
-      /** Media Type */
-      media_type?: string | null;
-      /** Name */
-      name: string;
-      /** @default primary */
-      role: components["schemas"]["AssetRole"];
-      /** Size Bytes */
-      size_bytes: number;
-    };
-    /** UploadAssetResponse */
-    UploadAssetResponse: {
-      /** Direct */
-      direct: boolean;
-      /** Id */
-      id: string;
-      role: components["schemas"]["AssetRole"];
-      /** Safe Name */
-      safe_name: string;
-      /** Size Bytes */
-      size_bytes: number;
-      /** Upload Url */
-      upload_url: string;
-    };
-    /** UploadCompleteResponse */
-    UploadCompleteResponse: {
-      /** Job Id */
-      job_id: string;
-      /** Recording Id */
-      recording_id: string;
-      /** State */
-      state: string;
-    };
-    /** UploadCreate */
-    UploadCreate: {
-      /** Assets */
-      assets: components["schemas"]["UploadAssetCreate"][];
-      csv_config?: components["schemas"]["CSVConfigRequest"] | null;
-      /** Format Hint */
-      format_hint?:
-        | ("edf" | "bdf" | "brainvision" | "eeglab" | "fif" | "csv")
-        | null;
-      /** Recording Name */
-      recording_name: string;
-    };
-    /** UploadResponse */
-    UploadResponse: {
-      /** Assets */
-      assets: components["schemas"]["UploadAssetResponse"][];
-      /** Id */
-      id: string;
-      /** Recording Name */
-      recording_name: string;
-      /** Status */
-      status: string;
-    };
-    /** UserResponse */
-    UserResponse: {
-      /** Display Name */
-      display_name: string;
-      /** Email */
-      email: string;
-      /** Id */
-      id: string;
-    };
-    /** ValidationError */
-    ValidationError: {
-      /** Context */
-      ctx?: Record<string, never>;
-      /** Input */
-      input?: unknown;
-      /** Location */
-      loc: (string | number)[];
-      /** Message */
-      msg: string;
-      /** Error Type */
-      type: string;
-    };
-    /** WorkspaceCreate */
-    WorkspaceCreate: {
-      /** Name */
-      name: string;
-    };
-    /** WorkspaceResponse */
-    WorkspaceResponse: {
-      /**
-       * Created At
-       * Format: date-time
-       */
-      created_at: string;
-      /** Id */
-      id: string;
-      /** Name */
-      name: string;
-      role: components["schemas"]["Role"];
-      /** Slug */
-      slug: string;
-    };
-  };
-  responses: never;
-  parameters: never;
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-  delete_annotation_api_annotations__annotation_id__delete: {
-    parameters: {
-      query?: never;
-      header?: {
-        authorization?: string | null;
-      };
-      path: {
-        annotation_id: string;
-      };
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["AnnotationDelete"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  update_annotation_api_annotations__annotation_id__patch: {
-    parameters: {
-      query?: never;
-      header?: {
-        authorization?: string | null;
-      };
-      path: {
-        annotation_id: string;
-      };
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["AnnotationUpdate"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["AnnotationResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  get_demo_recording_api_demo_recording_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["RecordingResponse"];
-        };
-      };
-    };
-  };
-  download_export_api_exports__export_id__content_get: {
-    parameters: {
-      query?: never;
-      header?: {
-        authorization?: string | null;
-      };
-      path: {
-        export_id: string;
-      };
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": unknown;
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  get_job_api_jobs__job_id__get: {
-    parameters: {
-      query?: never;
-      header?: {
-        authorization?: string | null;
-      };
-      path: {
-        job_id: string;
-      };
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["JobResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_recordings_api_projects__project_id__recordings_get: {
-    parameters: {
-      query?: never;
-      header?: {
-        authorization?: string | null;
-      };
-      path: {
-        project_id: string;
-      };
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["RecordingResponse"][];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  create_upload_api_projects__project_id__uploads_post: {
-    parameters: {
-      query?: never;
-      header?: {
-        authorization?: string | null;
-      };
-      path: {
-        project_id: string;
-      };
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["UploadCreate"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["UploadResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  get_recording_api_recordings__recording_id__get: {
-    parameters: {
-      query?: never;
-      header?: {
-        authorization?: string | null;
-      };
-      path: {
-        recording_id: string;
-      };
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["RecordingResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  delete_recording_api_recordings__recording_id__delete: {
-    parameters: {
-      query?: never;
-      header?: {
-        authorization?: string | null;
-      };
-      path: {
-        recording_id: string;
-      };
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      202: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["JobResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_annotations_api_recordings__recording_id__annotations_get: {
-    parameters: {
-      query?: never;
-      header?: {
-        authorization?: string | null;
-      };
-      path: {
-        recording_id: string;
-      };
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["AnnotationResponse"][];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  create_annotation_api_recordings__recording_id__annotations_post: {
-    parameters: {
-      query?: never;
-      header?: {
-        authorization?: string | null;
-      };
-      path: {
-        recording_id: string;
-      };
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["AnnotationCreate"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["AnnotationResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  set_bad_channel_api_recordings__recording_id__bad_channels__channel_id__put: {
-    parameters: {
-      query?: never;
-      header?: {
-        authorization?: string | null;
-      };
-      path: {
-        recording_id: string;
-        channel_id: string;
-      };
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["BadChannelUpdate"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BadChannelResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_channels_api_recordings__recording_id__channels_get: {
-    parameters: {
-      query?: never;
-      header?: {
-        authorization?: string | null;
-      };
-      path: {
-        recording_id: string;
-      };
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ChannelResponse"][];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_events_api_recordings__recording_id__events_get: {
-    parameters: {
-      query?: never;
-      header?: {
-        authorization?: string | null;
-      };
-      path: {
-        recording_id: string;
-      };
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["EventResponse"][];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  create_export_api_recordings__recording_id__exports_post: {
-    parameters: {
-      query?: never;
-      header?: {
-        authorization?: string | null;
-      };
-      path: {
-        recording_id: string;
-      };
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["ExportCreate"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ExportResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_processing_runs_api_recordings__recording_id__processing_runs_get: {
-    parameters: {
-      query?: never;
-      header?: {
-        authorization?: string | null;
-      };
-      path: {
-        recording_id: string;
-      };
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ProcessingRunResponse"][];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  create_processing_run_api_recordings__recording_id__processing_runs_post: {
-    parameters: {
-      query?: never;
-      header?: {
-        authorization?: string | null;
-      };
-      path: {
-        recording_id: string;
-      };
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["ProcessingRunCreate"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      202: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ProcessingRunResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  get_qc_api_recordings__recording_id__qc_get: {
-    parameters: {
-      query?: never;
-      header?: {
-        authorization?: string | null;
-      };
-      path: {
-        recording_id: string;
-      };
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": {
-            [key: string]: unknown;
-          };
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  get_waveform_api_recordings__recording_id__waveform_get: {
-    parameters: {
-      query?: {
-        start_seconds?: number;
-        duration_seconds?: number;
-        channel_index?: number[];
-        pixel_width?: number;
-      };
-      header?: {
-        authorization?: string | null;
-      };
-      path: {
-        recording_id: string;
-      };
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": {
-            [key: string]: unknown;
-          };
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  read_session_api_session_get: {
-    parameters: {
-      query?: never;
-      header?: {
-        authorization?: string | null;
-      };
-      path?: never;
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["SessionResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  delete_session_api_session_delete: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  create_dev_session_api_session_dev_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["DevSessionRequest"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["SessionResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  upload_local_content_api_uploads__upload_id__assets__asset_id__content_put: {
-    parameters: {
-      query?: never;
-      header?: {
-        authorization?: string | null;
-      };
-      path: {
-        upload_id: string;
-        asset_id: string;
-      };
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody: {
-      content: {
-        "multipart/form-data": components["schemas"]["Body_upload_local_content_api_uploads__upload_id__assets__asset_id__content_put"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  complete_upload_api_uploads__upload_id__complete_post: {
-    parameters: {
-      query?: never;
-      header?: {
-        authorization?: string | null;
-      };
-      path: {
-        upload_id: string;
-      };
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["UploadCompleteResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_workspaces_api_workspaces_get: {
-    parameters: {
-      query?: never;
-      header?: {
-        authorization?: string | null;
-      };
-      path?: never;
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["WorkspaceResponse"][];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  create_workspace_api_workspaces_post: {
-    parameters: {
-      query?: never;
-      header?: {
-        authorization?: string | null;
-      };
-      path?: never;
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["WorkspaceCreate"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["WorkspaceResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  list_projects_api_workspaces__workspace_id__projects_get: {
-    parameters: {
-      query?: never;
-      header?: {
-        authorization?: string | null;
-      };
-      path: {
-        workspace_id: string;
-      };
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ProjectResponse"][];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  create_project_api_workspaces__workspace_id__projects_post: {
-    parameters: {
-      query?: never;
-      header?: {
-        authorization?: string | null;
-      };
-      path: {
-        workspace_id: string;
-      };
-      cookie?: {
-        nw_session?: string | null;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["ProjectCreate"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ProjectResponse"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
+    delete_annotation_api_annotations__annotation_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                annotation_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnnotationDelete"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_annotation_api_annotations__annotation_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                annotation_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnnotationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnotationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_demo_recording_api_demo_recording_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordingResponse"];
+                };
+            };
+        };
+    };
+    download_export_api_exports__export_id__content_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                export_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_job_api_jobs__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                job_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_recordings_api_projects__project_id__recordings_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordingResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_upload_api_projects__project_id__uploads_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UploadCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_recording_api_recordings__recording_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                recording_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_recording_api_recordings__recording_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                recording_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_annotations_api_recordings__recording_id__annotations_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                recording_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnotationResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_annotation_api_recordings__recording_id__annotations_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                recording_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnnotationCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnotationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_bad_channel_api_recordings__recording_id__bad_channels__channel_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                recording_id: string;
+                channel_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BadChannelUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadChannelResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_channels_api_recordings__recording_id__channels_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                recording_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_events_api_recordings__recording_id__events_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                recording_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_export_api_recordings__recording_id__exports_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                recording_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExportCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_processing_runs_api_recordings__recording_id__processing_runs_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                recording_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProcessingRunResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_processing_run_api_recordings__recording_id__processing_runs_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                recording_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProcessingRunCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProcessingRunResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_qc_api_recordings__recording_id__qc_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                recording_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_waveform_api_recordings__recording_id__waveform_get: {
+        parameters: {
+            query?: {
+                start_seconds?: number;
+                duration_seconds?: number;
+                channel_index?: number[];
+                pixel_width?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                recording_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_session_api_session_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_session_api_session_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    create_dev_session_api_session_dev_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DevSessionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_local_content_api_uploads__upload_id__assets__asset_id__content_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                upload_id: string;
+                asset_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_local_content_api_uploads__upload_id__assets__asset_id__content_put"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_upload_api_uploads__upload_id__complete_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                upload_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadCompleteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_workspaces_api_workspaces_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_workspace_api_workspaces_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_memberships_api_workspaces__workspace_id__memberships_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                workspace_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MembershipResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upsert_membership_api_workspaces__workspace_id__memberships_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                workspace_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MembershipUpsert"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MembershipResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_membership_api_workspaces__workspace_id__memberships__membership_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                workspace_id: string;
+                membership_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_membership_api_workspaces__workspace_id__memberships__membership_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                workspace_id: string;
+                membership_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MembershipRoleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MembershipResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_workspace_metrics_api_workspaces__workspace_id__metrics_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                workspace_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceMetricsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_projects_api_workspaces__workspace_id__projects_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                workspace_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_project_api_workspaces__workspace_id__projects_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                workspace_id: string;
+            };
+            cookie?: {
+                nw_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
 }

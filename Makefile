@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install dev up down migrate seed lint format typecheck test test-python test-web test-e2e build openapi real-data clean
+.PHONY: help install dev up down migrate seed lint format typecheck test test-python test-web test-e2e build openapi real-data coverage benchmark clean
 
 help:
 	@awk 'BEGIN {FS = ":.*## "; print "NeuroWorkspace tasks:"} /^[a-zA-Z_-]+:.*## / {printf "  %-16s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -43,7 +43,7 @@ typecheck: ## Run Python and TypeScript type checks
 test: test-python test-web ## Run fast automated tests
 
 test-python: ## Run Python unit/integration tests except external real data
-	uv run pytest -m "not real_data and not slow" --cov --cov-report=term-missing
+	uv run pytest tests/python -m "not real_data"
 
 test-web: ## Run frontend tests
 	pnpm test
@@ -61,7 +61,17 @@ openapi: ## Regenerate checked-in OpenAPI and frontend types
 
 real-data: ## Fetch and run public real-data acceptance tests
 	uv run python scripts/fetch_test_data.py fetch --sample sleep_edf_sc4001
-	uv run pytest -m real_data --real-data-root .cache/neuro-workspace/testdata
+	uv run python scripts/fetch_test_data.py fetch --sample public_biosemi_bdf
+	uv run python scripts/fetch_test_data.py fetch --sample openneuro_ds004362_eeglab
+	uv run python scripts/fetch_test_data.py fetch --sample openneuro_ds006547_brainvision
+	uv run python scripts/fetch_test_data.py fetch --sample mne_official_fif
+	uv run pytest tests/python -m real_data --real-data-root .cache/neuro-workspace/testdata
+
+coverage: ## Run the complete pinned corpus and enforce the coverage floor
+	uv run pytest tests/python --real-data-root .cache/neuro-workspace/testdata --cov --cov-report=term-missing
+
+benchmark: ## Measure the generated 32-channel, 30-minute stress scenario
+	uv run python scripts/benchmark_signal_store.py
 
 clean: ## Remove only generated build and test artifacts
 	uv run python scripts/clean_generated.py

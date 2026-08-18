@@ -107,6 +107,25 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+  updateAnnotation: (
+    id: string,
+    input: {
+      revision: number;
+      onset_seconds: number;
+      duration_seconds: number;
+      label: string;
+      description: string;
+    },
+  ) =>
+    request<Annotation>(`/annotations/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    }),
+  deleteAnnotation: (id: string, revision: number) =>
+    request<void>(`/annotations/${id}`, {
+      method: "DELETE",
+      body: JSON.stringify({ revision }),
+    }),
   setBadChannel: (recordingId: string, channelId: string, bad: boolean) =>
     request(`/recordings/${recordingId}/bad-channels/${channelId}`, {
       method: "PUT",
@@ -165,6 +184,15 @@ export const api = {
       progress: number;
       error_message: string | null;
     }>(`/jobs/${id}`),
+  createExport: (
+    recordingId: string,
+    formatId: "annotations_csv" | "provenance_json" | "qc_json",
+  ) =>
+    request<{ id: string }>(`/recordings/${recordingId}/exports`, {
+      method: "POST",
+      body: JSON.stringify({ format_id: formatId }),
+    }),
+  exportUrl: (id: string) => `${API_BASE}/exports/${id}/content`,
 };
 
 export function formatDuration(seconds: number): string {

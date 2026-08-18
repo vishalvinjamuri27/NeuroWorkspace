@@ -11,7 +11,7 @@ import structlog
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import ORJSONResponse
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.responses import Response
@@ -82,7 +82,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "physiological recordings. "
             "QC outputs are review heuristics, not diagnostic conclusions."
         ),
-        default_response_class=ORJSONResponse,
+        default_response_class=JSONResponse,
         lifespan=lifespan,
     )
     app.add_middleware(
@@ -100,7 +100,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         unsafe = request.method in {"POST", "PUT", "PATCH", "DELETE"}
         origin = request.headers.get("origin")
         if unsafe and origin and origin not in selected.allowed_origins:
-            return ORJSONResponse(
+            return JSONResponse(
                 status_code=403,
                 content={
                     "error": {
@@ -122,9 +122,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return response
 
     @app.exception_handler(NeuroError)
-    async def handle_neuro_error(request: Request, exc: NeuroError) -> ORJSONResponse:
+    async def handle_neuro_error(request: Request, exc: NeuroError) -> JSONResponse:
         correlation_id = request.headers.get("x-correlation-id", str(uuid.uuid4()))[:64]
-        return ORJSONResponse(
+        return JSONResponse(
             status_code=exc.status_code,
             content={
                 "error": {
@@ -140,10 +140,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.exception_handler(RequestValidationError)
     async def handle_request_validation(
         request: Request, exc: RequestValidationError
-    ) -> ORJSONResponse:
+    ) -> JSONResponse:
         correlation_id = request.headers.get("x-correlation-id", str(uuid.uuid4()))[:64]
         fields = [".".join(str(part) for part in error["loc"]) for error in exc.errors()[:20]]
-        return ORJSONResponse(
+        return JSONResponse(
             status_code=422,
             content={
                 "error": {

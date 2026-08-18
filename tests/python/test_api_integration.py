@@ -78,6 +78,10 @@ def test_csv_upload_view_annotate_process_export_and_delete(
     recording = client.get(f"/api/recordings/{recording_id}")
     assert recording.json()["state"] == "READY"
     assert recording.json()["safe_metadata"]["channel_count"] == 2
+    metrics = client.get(f"/api/workspaces/{workspace_id}/metrics")
+    assert metrics.status_code == 200
+    assert metrics.json()["recordings_ready"] == 1
+    assert metrics.json()["viewer_opens"] == 1
     assert len(client.get(f"/api/projects/{project_id}/recordings").json()) == 1
     assert client.get(f"/api/recordings/{recording_id}/events").json() == []
 
@@ -192,3 +196,56 @@ def test_request_boundary_and_validation(client: TestClient) -> None:
     invalid = client.post("/api/session/dev", json={"email": "x", "display_name": ""})
     assert invalid.status_code == 422
     assert invalid.json()["error"]["code"] == "invalid_request"
+
+
+@pytest.mark.integration
+def test_workspace_memberships_are_role_scoped_and_keep_an_owner(client: TestClient) -> None:
+    sign_in(client)
+    workspace_id, _ = create_workspace_project(client)
+    owner = client.get(f"/api/workspaces/{workspace_id}/memberships").json()[0]
+
+    sign_in(client, "collaborator@example.test")
+    sign_in(client)
+    added = client.put(
+        f"/api/workspaces/{workspace_id}/memberships",
+        json={"email": "collaborator@example.test", "role": "viewer"},
+    )
+    assert added.status_code == 200, added.text
+
+    sign_in(client, "collaborator@example.test")
+    assert client.get(f"/api/workspaces/{workspace_id}/projects").status_code == 200
+    forbidden = client.post(
+        f"/api/workspaces/{workspace_id}/projects",
+        json={"name": "Unauthorized", "description": ""},
+    )
+    assert forbidden.status_code == 404
+
+    sign_in(client)
+    changed = client.patch(
+        f"/api/workspaces/{workspace_id}/memberships/{added.json()['id']}",
+        json={"role": "member"},
+    )
+    assert changed.status_code == 200
+    assert changed.json()["role"] == "member"
+
+    sign_in(client, "collaborator@example.test")
+    assert (
+        client.post(
+            f"/api/workspaces/{workspace_id}/projects",
+            json={"name": "Allowed for members", "description": ""},
+        ).status_code
+        == 201
+    )
+    assert (
+        client.delete(f"/api/workspaces/{workspace_id}/memberships/{owner['id']}").status_code
+        == 404
+    )
+
+    sign_in(client)
+    last_owner = client.delete(f"/api/workspaces/{workspace_id}/memberships/{owner['id']}")
+    assert last_owner.status_code == 409
+    removed = client.delete(f"/api/workspaces/{workspace_id}/memberships/{added.json()['id']}")
+    assert removed.status_code == 204
+    metrics = client.get(f"/api/workspaces/{workspace_id}/metrics")
+    assert metrics.status_code == 200
+    assert metrics.json()["membership_changes"] == 3

@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.8.22"
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13.7"
+      - run: uv sync --frozen --extra dev
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run mypy packages/signal-core/src apps/api/src apps/worker/src
+      - run: uv run pytest tests/python -m "not real_data"
+      - run: uv run alembic upgrade head
+        env:
+          DATABASE_URL: sqlite:///./migration-ci.db
+      - run: uv run alembic check
+        env:
+          DATABASE_URL: sqlite:///./migration-ci.db
+      - run: uv build
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "11.19.0"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.8.0"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.8.22"
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13.7"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "11.19.0"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.8.0"
+          cache: pnpm
+      - run: uv sync --frozen --extra dev
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @neuroworkspace/web exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+
+  containers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f apps/api/Dockerfile -t neuroworkspace-api:test .
+      - run: docker build -f apps/worker/Dockerfile -t neuroworkspace-worker:test .
+      - run: docker build -f apps/web/Dockerfile -t neuroworkspace-web:test .
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.8.22"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "11.19.0"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.8.0"
+          cache: pnpm
+      - run: uv sync --frozen --extra dev
+      - run: pnpm install --frozen-lockfile
+      - run: uv export --frozen --no-dev --no-emit-project --quiet | uvx pip-audit --strict -r /dev/stdin
+      - run: pnpm audit --audit-level high

@@ -55,6 +55,13 @@ export function ViewerShell({ recordingId }: { recordingId: string }) {
   const [selection, setSelection] = useState<Selection | null>(null);
   const [annotationLabel, setAnnotationLabel] = useState("");
   const [annotationDescription, setAnnotationDescription] = useState("");
+  const [editingAnnotation, setEditingAnnotation] = useState<Annotation | null>(
+    null,
+  );
+  const [exportFormat, setExportFormat] = useState<
+    "annotations_csv" | "provenance_json" | "qc_json"
+  >("annotations_csv");
+  const [exporting, setExporting] = useState(false);
   const [editable, setEditable] = useState(false);
   const [viewerWidth, setViewerWidth] = useState(1200);
   const [loading, setLoading] = useState(true);
@@ -292,6 +299,70 @@ export function ViewerShell({ recordingId }: { recordingId: string }) {
     }
   }
 
+  function beginEditAnnotation(annotation: Annotation) {
+    setEditingAnnotation(annotation);
+    setAnnotationLabel(annotation.label);
+    setAnnotationDescription(annotation.description);
+  }
+
+  async function saveEditedAnnotation(event: FormEvent) {
+    event.preventDefault();
+    if (!editingAnnotation) return;
+    try {
+      const updated = await api.updateAnnotation(editingAnnotation.id, {
+        revision: editingAnnotation.revision,
+        onset_seconds: editingAnnotation.onset_seconds,
+        duration_seconds: editingAnnotation.duration_seconds,
+        label: annotationLabel,
+        description: annotationDescription,
+      });
+      setAnnotations((current) =>
+        current.map((annotation) =>
+          annotation.id === updated.id ? updated : annotation,
+        ),
+      );
+      setEditingAnnotation(null);
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "The annotation could not be updated.",
+      );
+    }
+  }
+
+  async function deleteAnnotation(annotation: Annotation) {
+    if (!window.confirm(`Delete annotation “${annotation.label}”?`)) return;
+    try {
+      await api.deleteAnnotation(annotation.id, annotation.revision);
+      setAnnotations((current) =>
+        current.filter((item) => item.id !== annotation.id),
+      );
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "The annotation could not be deleted.",
+      );
+    }
+  }
+
+  async function downloadExport() {
+    setExporting(true);
+    try {
+      const created = await api.createExport(recordingId, exportFormat);
+      window.location.assign(api.exportUrl(created.id));
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "The export could not be created.",
+      );
+    } finally {
+      setExporting(false);
+    }
+  }
+
   if (loading)
     return (
       <main className="viewer-loading">
@@ -446,6 +517,31 @@ export function ViewerShell({ recordingId }: { recordingId: string }) {
         >
           ＋ Annotate
         </button>
+        <div className="export-control">
+          <select
+            aria-label="Export format"
+            value={exportFormat}
+            disabled={!editable || exporting}
+            onChange={(event) =>
+              setExportFormat(
+                event.target.value as
+                  | "annotations_csv"
+                  | "provenance_json"
+                  | "qc_json",
+              )
+            }
+          >
+            <option value="annotations_csv">Annotations CSV</option>
+            <option value="provenance_json">Provenance JSON</option>
+            <option value="qc_json">QC JSON</option>
+          </select>
+          <button
+            disabled={!editable || exporting}
+            onClick={() => void downloadExport()}
+          >
+            {exporting ? "Preparing…" : "Export"}
+          </button>
+        </div>
         <div className="time-readout">
           <span>{formatDuration(start)}</span>
           <i>—</i>
@@ -509,6 +605,9 @@ export function ViewerShell({ recordingId }: { recordingId: string }) {
         annotations={annotations}
         qc={qc}
         onJump={(seconds) => moveTo(seconds - duration * 0.2)}
+        editable={editable}
+        onEditAnnotation={beginEditAnnotation}
+        onDeleteAnnotation={(annotation) => void deleteAnnotation(annotation)}
       />
       <footer className="viewer-footer">
         <span>Cursor {cursor === null ? "—" : formatDuration(cursor)}</span>
@@ -569,6 +668,60 @@ export function ViewerShell({ recordingId }: { recordingId: string }) {
               </button>
               <button className="button primary" type="submit">
                 Save annotation
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+      {editingAnnotation && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onMouseDown={() => setEditingAnnotation(null)}
+        >
+          <form
+            className="annotation-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-annotation-title"
+            onSubmit={saveEditedAnnotation}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <p className="section-kicker">
+              Revision {editingAnnotation.revision}
+            </p>
+            <h2 id="edit-annotation-title">Edit annotation</h2>
+            <label>
+              Label
+              <input
+                autoFocus
+                maxLength={160}
+                required
+                value={annotationLabel}
+                onChange={(event) => setAnnotationLabel(event.target.value)}
+              />
+            </label>
+            <label>
+              Description
+              <textarea
+                rows={3}
+                maxLength={4000}
+                value={annotationDescription}
+                onChange={(event) =>
+                  setAnnotationDescription(event.target.value)
+                }
+              />
+            </label>
+            <div className="button-row">
+              <button
+                type="button"
+                className="button ghost"
+                onClick={() => setEditingAnnotation(null)}
+              >
+                Cancel
+              </button>
+              <button className="button primary" type="submit">
+                Save changes
               </button>
             </div>
           </form>

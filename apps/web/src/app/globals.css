@@ -1093,6 +1093,55 @@ button {
 .data-list > button:hover {
   border-color: #39525b;
 }
+.annotation-row {
+  min-height: 47px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  border: 1px solid var(--border-soft);
+  background: #0a1419;
+}
+.annotation-row > button:first-child {
+  display: grid;
+  grid-template-columns: 61px 1fr auto;
+  gap: 9px;
+  align-items: center;
+  padding: 6px 10px;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.annotation-actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding-right: 6px;
+}
+.annotation-actions button {
+  border: 1px solid var(--border-soft);
+  background: #101d23;
+  color: var(--muted);
+  padding: 5px 7px;
+  font-size: 8px;
+  cursor: pointer;
+}
+.export-control {
+  display: flex;
+  align-items: stretch;
+  height: 30px;
+}
+.export-control select,
+.export-control button {
+  border: 1px solid var(--border);
+  background: #0a151a;
+  color: var(--muted-strong);
+  font-size: 9px;
+  padding: 0 8px;
+}
+.export-control button {
+  border-left: 0;
+  cursor: pointer;
+}
 .data-list time {
   font-family: var(--font-mono), monospace;
   color: var(--accent);

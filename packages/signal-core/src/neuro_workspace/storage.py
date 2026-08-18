@@ -134,14 +134,28 @@ class S3ObjectStore:
 
     def __init__(self, settings: Settings) -> None:
         self.bucket = settings.s3_bucket
+        credentials = {
+            "aws_access_key_id": settings.s3_access_key,
+            "aws_secret_access_key": (
+                settings.s3_secret_key.get_secret_value() if settings.s3_secret_key else None
+            ),
+        }
+        client_config = Config(signature_version="s3v4", s3={"addressing_style": "path"})
         self.client = boto3.client(
             "s3",
             endpoint_url=settings.s3_endpoint_url,
-            aws_access_key_id=settings.s3_access_key,
-            aws_secret_access_key=(
-                settings.s3_secret_key.get_secret_value() if settings.s3_secret_key else None
-            ),
-            config=Config(signature_version="s3v4"),
+            config=client_config,
+            **credentials,
+        )
+        self.public_client = (
+            boto3.client(
+                "s3",
+                endpoint_url=settings.s3_public_endpoint_url,
+                config=client_config,
+                **credentials,
+            )
+            if settings.s3_public_endpoint_url
+            else self.client
         )
         try:
             self.client.head_bucket(Bucket=self.bucket)
@@ -193,7 +207,7 @@ class S3ObjectStore:
 
     def presign_put(self, key: str, expires_seconds: int = 900) -> str | None:
         return str(
-            self.client.generate_presigned_url(
+            self.public_client.generate_presigned_url(
                 "put_object",
                 Params={"Bucket": self.bucket, "Key": _safe_key(key)},
                 ExpiresIn=expires_seconds,

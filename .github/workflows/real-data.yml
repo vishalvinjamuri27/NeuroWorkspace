@@ -1,0 +1,35 @@
+name: Public real-data acceptance
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 1 * *"
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.8.22"
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13.7"
+      - run: uv sync --frozen --extra dev
+      - uses: actions/cache@v4
+        with:
+          path: .cache/neuro-workspace/testdata
+          key: public-neuro-data-${{ hashFiles('testdata/manifest.yaml') }}
+      - run: |
+          uv run python scripts/fetch_test_data.py fetch --sample sleep_edf_sc4001
+          uv run python scripts/fetch_test_data.py fetch --sample public_biosemi_bdf
+          uv run python scripts/fetch_test_data.py fetch --sample openneuro_ds004362_eeglab
+          uv run python scripts/fetch_test_data.py fetch --sample openneuro_ds006547_brainvision
+          uv run python scripts/fetch_test_data.py fetch --sample mne_official_fif
+      - run: uv run pytest tests/python --real-data-root .cache/neuro-workspace/testdata --cov --cov-report=term-missing

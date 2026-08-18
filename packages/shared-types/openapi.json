@@ -27,7 +27,10 @@
             "type": "number"
           }
         },
-        "required": ["onset_seconds", "label"],
+        "required": [
+          "onset_seconds",
+          "label"
+        ],
         "title": "AnnotationCreate",
         "type": "object"
       },
@@ -39,7 +42,9 @@
             "type": "integer"
           }
         },
-        "required": ["revision"],
+        "required": [
+          "revision"
+        ],
         "title": "AnnotationDelete",
         "type": "object"
       },
@@ -155,7 +160,12 @@
             "type": "integer"
           }
         },
-        "required": ["revision", "onset_seconds", "duration_seconds", "label"],
+        "required": [
+          "revision",
+          "onset_seconds",
+          "duration_seconds",
+          "label"
+        ],
         "title": "AnnotationUpdate",
         "type": "object"
       },
@@ -218,12 +228,17 @@
             "type": "string"
           },
           "state": {
-            "enum": ["confirmed_bad", "confirmed_good"],
+            "enum": [
+              "confirmed_bad",
+              "confirmed_good"
+            ],
             "title": "State",
             "type": "string"
           }
         },
-        "required": ["state"],
+        "required": [
+          "state"
+        ],
         "title": "BadChannelUpdate",
         "type": "object"
       },
@@ -235,7 +250,9 @@
             "type": "string"
           }
         },
-        "required": ["file"],
+        "required": [
+          "file"
+        ],
         "title": "Body_upload_local_content_api_uploads__upload_id__assets__asset_id__content_put",
         "type": "object"
       },
@@ -307,7 +324,11 @@
             "type": "array"
           }
         },
-        "required": ["channel_columns", "channel_names", "units"],
+        "required": [
+          "channel_columns",
+          "channel_names",
+          "units"
+        ],
         "title": "CSVConfigRequest",
         "type": "object"
       },
@@ -388,7 +409,10 @@
             "type": "string"
           }
         },
-        "required": ["email", "display_name"],
+        "required": [
+          "email",
+          "display_name"
+        ],
         "title": "DevSessionRequest",
         "type": "object"
       },
@@ -435,12 +459,18 @@
       "ExportCreate": {
         "properties": {
           "format_id": {
-            "enum": ["annotations_csv", "provenance_json", "qc_json"],
+            "enum": [
+              "annotations_csv",
+              "provenance_json",
+              "qc_json"
+            ],
             "title": "Format Id",
             "type": "string"
           }
         },
-        "required": ["format_id"],
+        "required": [
+          "format_id"
+        ],
         "title": "ExportCreate",
         "type": "object"
       },
@@ -612,6 +642,74 @@
         "title": "JobResponse",
         "type": "object"
       },
+      "MembershipResponse": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserResponse"
+          },
+          "workspace_id": {
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "user",
+          "role",
+          "is_active",
+          "created_at"
+        ],
+        "title": "MembershipResponse",
+        "type": "object"
+      },
+      "MembershipRoleUpdate": {
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "title": "MembershipRoleUpdate",
+        "type": "object"
+      },
+      "MembershipUpsert": {
+        "properties": {
+          "email": {
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        },
+        "required": [
+          "email",
+          "role"
+        ],
+        "title": "MembershipUpsert",
+        "type": "object"
+      },
       "ProcessingRunCreate": {
         "properties": {
           "operation_id": {
@@ -625,7 +723,10 @@
             "type": "object"
           }
         },
-        "required": ["operation_id", "parameters"],
+        "required": [
+          "operation_id",
+          "parameters"
+        ],
         "title": "ProcessingRunCreate",
         "type": "object"
       },
@@ -711,7 +812,9 @@
             "type": "string"
           }
         },
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "title": "ProjectCreate",
         "type": "object"
       },
@@ -739,7 +842,13 @@
             "type": "string"
           }
         },
-        "required": ["id", "workspace_id", "name", "description", "created_at"],
+        "required": [
+          "id",
+          "workspace_id",
+          "name",
+          "description",
+          "created_at"
+        ],
         "title": "ProjectResponse",
         "type": "object"
       },
@@ -848,7 +957,12 @@
         "type": "object"
       },
       "Role": {
-        "enum": ["owner", "admin", "member", "viewer"],
+        "enum": [
+          "owner",
+          "admin",
+          "member",
+          "viewer"
+        ],
         "title": "Role",
         "type": "string"
       },
@@ -858,7 +972,9 @@
             "$ref": "#/components/schemas/UserResponse"
           }
         },
-        "required": ["user"],
+        "required": [
+          "user"
+        ],
         "title": "SessionResponse",
         "type": "object"
       },
@@ -892,7 +1008,10 @@
             "type": "integer"
           }
         },
-        "required": ["name", "size_bytes"],
+        "required": [
+          "name",
+          "size_bytes"
+        ],
         "title": "UploadAssetCreate",
         "type": "object"
       },
@@ -948,7 +1067,11 @@
             "type": "string"
           }
         },
-        "required": ["recording_id", "job_id", "state"],
+        "required": [
+          "recording_id",
+          "job_id",
+          "state"
+        ],
         "title": "UploadCompleteResponse",
         "type": "object"
       },
@@ -976,7 +1099,14 @@
           "format_hint": {
             "anyOf": [
               {
-                "enum": ["edf", "bdf", "brainvision", "eeglab", "fif", "csv"],
+                "enum": [
+                  "edf",
+                  "bdf",
+                  "brainvision",
+                  "eeglab",
+                  "fif",
+                  "csv"
+                ],
                 "type": "string"
               },
               {
@@ -992,7 +1122,10 @@
             "type": "string"
           }
         },
-        "required": ["recording_name", "assets"],
+        "required": [
+          "recording_name",
+          "assets"
+        ],
         "title": "UploadCreate",
         "type": "object"
       },
@@ -1018,7 +1151,12 @@
             "type": "string"
           }
         },
-        "required": ["id", "status", "recording_name", "assets"],
+        "required": [
+          "id",
+          "status",
+          "recording_name",
+          "assets"
+        ],
         "title": "UploadResponse",
         "type": "object"
       },
@@ -1037,7 +1175,11 @@
             "type": "string"
           }
         },
-        "required": ["id", "email", "display_name"],
+        "required": [
+          "id",
+          "email",
+          "display_name"
+        ],
         "title": "UserResponse",
         "type": "object"
       },
@@ -1073,7 +1215,11 @@
             "type": "string"
           }
         },
-        "required": ["loc", "msg", "type"],
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
         "title": "ValidationError",
         "type": "object"
       },
@@ -1086,8 +1232,66 @@
             "type": "string"
           }
         },
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "title": "WorkspaceCreate",
+        "type": "object"
+      },
+      "WorkspaceMetricsResponse": {
+        "properties": {
+          "annotations_created": {
+            "title": "Annotations Created",
+            "type": "integer"
+          },
+          "exports_created": {
+            "title": "Exports Created",
+            "type": "integer"
+          },
+          "ingestion_errors_by_format": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Ingestion Errors By Format",
+            "type": "object"
+          },
+          "members": {
+            "title": "Members",
+            "type": "integer"
+          },
+          "membership_changes": {
+            "title": "Membership Changes",
+            "type": "integer"
+          },
+          "recordings_failed": {
+            "title": "Recordings Failed",
+            "type": "integer"
+          },
+          "recordings_ready": {
+            "title": "Recordings Ready",
+            "type": "integer"
+          },
+          "recordings_uploaded": {
+            "title": "Recordings Uploaded",
+            "type": "integer"
+          },
+          "viewer_opens": {
+            "title": "Viewer Opens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "members",
+          "recordings_uploaded",
+          "recordings_ready",
+          "recordings_failed",
+          "annotations_created",
+          "exports_created",
+          "viewer_opens",
+          "membership_changes",
+          "ingestion_errors_by_format"
+        ],
+        "title": "WorkspaceMetricsResponse",
         "type": "object"
       },
       "WorkspaceResponse": {
@@ -1113,7 +1317,13 @@
             "type": "string"
           }
         },
-        "required": ["id", "name", "slug", "role", "created_at"],
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "role",
+          "created_at"
+        ],
         "title": "WorkspaceResponse",
         "type": "object"
       }
@@ -1198,7 +1408,9 @@
           }
         },
         "summary": "Delete Annotation",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       },
       "patch": {
         "operationId": "update_annotation_api_annotations__annotation_id__patch",
@@ -1278,7 +1490,9 @@
           }
         },
         "summary": "Update Annotation",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/demo/recording": {
@@ -1297,7 +1511,9 @@
           }
         },
         "summary": "Get Demo Recording",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/exports/{export_id}/content": {
@@ -1367,7 +1583,9 @@
           }
         },
         "summary": "Download Export",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/jobs/{job_id}": {
@@ -1439,7 +1657,9 @@
           }
         },
         "summary": "Get Job",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/projects/{project_id}/recordings": {
@@ -1515,7 +1735,9 @@
           }
         },
         "summary": "List Recordings",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/projects/{project_id}/uploads": {
@@ -1597,7 +1819,9 @@
           }
         },
         "summary": "Create Upload",
-        "tags": ["uploads"]
+        "tags": [
+          "uploads"
+        ]
       }
     },
     "/api/recordings/{recording_id}": {
@@ -1669,7 +1893,9 @@
           }
         },
         "summary": "Delete Recording",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       },
       "get": {
         "operationId": "get_recording_api_recordings__recording_id__get",
@@ -1739,7 +1965,9 @@
           }
         },
         "summary": "Get Recording",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/recordings/{recording_id}/annotations": {
@@ -1815,7 +2043,9 @@
           }
         },
         "summary": "List Annotations",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       },
       "post": {
         "operationId": "create_annotation_api_recordings__recording_id__annotations_post",
@@ -1895,7 +2125,9 @@
           }
         },
         "summary": "Create Annotation",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/recordings/{recording_id}/bad-channels/{channel_id}": {
@@ -1986,7 +2218,9 @@
           }
         },
         "summary": "Set Bad Channel",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/recordings/{recording_id}/channels": {
@@ -2062,7 +2296,9 @@
           }
         },
         "summary": "List Channels",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/recordings/{recording_id}/events": {
@@ -2138,7 +2374,9 @@
           }
         },
         "summary": "List Events",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/recordings/{recording_id}/exports": {
@@ -2220,7 +2458,9 @@
           }
         },
         "summary": "Create Export",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/recordings/{recording_id}/processing-runs": {
@@ -2296,7 +2536,9 @@
           }
         },
         "summary": "List Processing Runs",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       },
       "post": {
         "operationId": "create_processing_run_api_recordings__recording_id__processing_runs_post",
@@ -2376,7 +2618,9 @@
           }
         },
         "summary": "Create Processing Run",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/recordings/{recording_id}/qc": {
@@ -2450,7 +2694,9 @@
           }
         },
         "summary": "Get Qc",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/recordings/{recording_id}/waveform": {
@@ -2570,7 +2816,9 @@
           }
         },
         "summary": "Get Waveform",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/session": {
@@ -2582,7 +2830,9 @@
           }
         },
         "summary": "Delete Session",
-        "tags": ["identity and workspaces"]
+        "tags": [
+          "identity and workspaces"
+        ]
       },
       "get": {
         "operationId": "read_session_api_session_get",
@@ -2643,7 +2893,9 @@
           }
         },
         "summary": "Read Session",
-        "tags": ["identity and workspaces"]
+        "tags": [
+          "identity and workspaces"
+        ]
       }
     },
     "/api/session/dev": {
@@ -2682,7 +2934,9 @@
           }
         },
         "summary": "Create Dev Session",
-        "tags": ["identity and workspaces"]
+        "tags": [
+          "identity and workspaces"
+        ]
       }
     },
     "/api/uploads/{upload_id}/assets/{asset_id}/content": {
@@ -2766,7 +3020,9 @@
           }
         },
         "summary": "Upload Local Content",
-        "tags": ["uploads"]
+        "tags": [
+          "uploads"
+        ]
       }
     },
     "/api/uploads/{upload_id}/complete": {
@@ -2838,7 +3094,9 @@
           }
         },
         "summary": "Complete Upload",
-        "tags": ["uploads"]
+        "tags": [
+          "uploads"
+        ]
       }
     },
     "/api/workspaces": {
@@ -2905,7 +3163,9 @@
           }
         },
         "summary": "List Workspaces",
-        "tags": ["identity and workspaces"]
+        "tags": [
+          "identity and workspaces"
+        ]
       },
       "post": {
         "operationId": "create_workspace_api_workspaces_post",
@@ -2976,7 +3236,411 @@
           }
         },
         "summary": "Create Workspace",
-        "tags": ["identity and workspaces"]
+        "tags": [
+          "identity and workspaces"
+        ]
+      }
+    },
+    "/api/workspaces/{workspace_id}/memberships": {
+      "get": {
+        "operationId": "list_memberships_api_workspaces__workspace_id__memberships_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "nw_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Nw Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MembershipResponse"
+                  },
+                  "title": "Response List Memberships Api Workspaces  Workspace Id  Memberships Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Memberships",
+        "tags": [
+          "identity and workspaces"
+        ]
+      },
+      "put": {
+        "operationId": "upsert_membership_api_workspaces__workspace_id__memberships_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "nw_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Nw Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MembershipUpsert"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MembershipResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upsert Membership",
+        "tags": [
+          "identity and workspaces"
+        ]
+      }
+    },
+    "/api/workspaces/{workspace_id}/memberships/{membership_id}": {
+      "delete": {
+        "operationId": "delete_membership_api_workspaces__workspace_id__memberships__membership_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "membership_id",
+            "required": true,
+            "schema": {
+              "title": "Membership Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "nw_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Nw Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Membership",
+        "tags": [
+          "identity and workspaces"
+        ]
+      },
+      "patch": {
+        "operationId": "update_membership_api_workspaces__workspace_id__memberships__membership_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "membership_id",
+            "required": true,
+            "schema": {
+              "title": "Membership Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "nw_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Nw Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MembershipRoleUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MembershipResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Membership",
+        "tags": [
+          "identity and workspaces"
+        ]
+      }
+    },
+    "/api/workspaces/{workspace_id}/metrics": {
+      "get": {
+        "description": "Return coarse, non-sensitive product signals to workspace operators.",
+        "operationId": "get_workspace_metrics_api_workspaces__workspace_id__metrics_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "nw_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Nw Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceMetricsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Workspace Metrics",
+        "tags": [
+          "identity and workspaces"
+        ]
       }
     },
     "/api/workspaces/{workspace_id}/projects": {
@@ -3052,7 +3716,9 @@
           }
         },
         "summary": "List Projects",
-        "tags": ["identity and workspaces"]
+        "tags": [
+          "identity and workspaces"
+        ]
       },
       "post": {
         "operationId": "create_project_api_workspaces__workspace_id__projects_post",
@@ -3132,7 +3798,9 @@
           }
         },
         "summary": "Create Project",
-        "tags": ["identity and workspaces"]
+        "tags": [
+          "identity and workspaces"
+        ]
       }
     }
   }

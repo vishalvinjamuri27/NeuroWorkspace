@@ -38,9 +38,7 @@ export default function HomePage() {
         </Link>
         <nav aria-label="Primary navigation">
           <a href="#capabilities">Capabilities</a>
-          <a href="https://github.com" target="_blank" rel="noreferrer">
-            Documentation
-          </a>
+          <a href="#capabilities">How it works</a>
           <Link className="button secondary small" href="/upload">
             Open workspace
           </Link>

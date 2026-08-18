@@ -41,6 +41,7 @@ from neuro_api.schemas import (
 from neuro_workspace.auth import Identity
 from neuro_workspace.db.models import (
     Annotation,
+    AuditEvent,
     BadChannel,
     Channel,
     Event,
@@ -155,9 +156,25 @@ def get_recording(
     identity: Identity | None = Depends(optional_identity),
     session: Session = Depends(get_db),
 ) -> RecordingResponse:
-    return RecordingResponse.model_validate(
-        _public_or_authorized_recording(session, recording_id, identity)
-    )
+    recording = _public_or_authorized_recording(session, recording_id, identity)
+    if identity is not None and not recording.is_demo:
+        user = ensure_user(
+            session,
+            subject=identity.subject,
+            email=identity.email,
+            display_name=identity.display_name,
+        )
+        session.add(
+            AuditEvent(
+                workspace_id=recording.workspace_id,
+                actor_id=user.id,
+                action="viewer.opened",
+                target_type="recording",
+                target_id=recording.id,
+            )
+        )
+        session.commit()
+    return RecordingResponse.model_validate(recording)
 
 
 @router.get("/recordings/{recording_id}/channels", response_model=list[ChannelResponse])

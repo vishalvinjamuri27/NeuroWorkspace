@@ -40,12 +40,22 @@ class Settings(BaseSettings):
     max_waveform_pixels: int = 4096
     max_waveform_points: int = 1_500_000
     waveform_cache_seconds: int = 300
+    feature_flags: str = ""
     log_level: str = "INFO"
     build_version: str = "development"
 
     @property
     def allowed_origins(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def enabled_features(self) -> frozenset[str]:
+        return frozenset(
+            flag.strip().casefold() for flag in self.feature_flags.split(",") if flag.strip()
+        )
+
+    def feature_enabled(self, flag: str) -> bool:
+        return flag.casefold() in self.enabled_features
 
     @model_validator(mode="after")
     def validate_production_safety(self) -> Settings:
