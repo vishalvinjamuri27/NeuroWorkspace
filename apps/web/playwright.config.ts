@@ -7,7 +7,7 @@ export default defineConfig({
   webServer: [
     {
       command:
-        "cd ../.. && DATABASE_URL=sqlite:///./data/e2e.db OBJECT_STORE_ROOT=data/e2e-objects WORKER_EAGER=true uv run uvicorn neuro_api.main:app --port 8000",
+        "cd ../.. && mkdir -p data/e2e-objects && DATABASE_URL=sqlite:///./data/e2e.db OBJECT_STORE_ROOT=data/e2e-objects WORKER_EAGER=true uv run uvicorn neuro_api.main:app --port 8000",
       url: "http://localhost:8000/health/ready",
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
