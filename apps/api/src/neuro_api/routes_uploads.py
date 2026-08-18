@@ -50,7 +50,9 @@ def _dispatch_ingestion(background: BackgroundTasks, runtime: Runtime, job_id: s
             job_id=job_id,
         )
     else:
-        Celery(broker=runtime.settings.redis_url).send_task("neuroworkspace.ingest", args=[job_id])
+        Celery(broker=runtime.settings.redis_url).send_task(
+            "neuroworkspace.ingest", args=[job_id], queue="ingestion"
+        )
 
 
 @router.post("/projects/{project_id}/uploads", response_model=UploadResponse, status_code=201)

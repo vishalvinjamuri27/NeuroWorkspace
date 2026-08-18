@@ -106,7 +106,9 @@ def _dispatch_processing(background: BackgroundTasks, runtime: Runtime, job_id: 
             job_id=job_id,
         )
     else:
-        Celery(broker=runtime.settings.redis_url).send_task("neuroworkspace.process", args=[job_id])
+        Celery(broker=runtime.settings.redis_url).send_task(
+            "neuroworkspace.process", args=[job_id], queue="processing"
+        )
 
 
 def _dispatch_deletion(background: BackgroundTasks, runtime: Runtime, job_id: str) -> None:
@@ -119,7 +121,9 @@ def _dispatch_deletion(background: BackgroundTasks, runtime: Runtime, job_id: st
             job_id=job_id,
         )
     else:
-        Celery(broker=runtime.settings.redis_url).send_task("neuroworkspace.delete", args=[job_id])
+        Celery(broker=runtime.settings.redis_url).send_task(
+            "neuroworkspace.delete", args=[job_id], queue="maintenance"
+        )
 
 
 @router.get("/projects/{project_id}/recordings", response_model=list[RecordingResponse])
