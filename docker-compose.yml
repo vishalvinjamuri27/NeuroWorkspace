@@ -86,6 +86,7 @@ services:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
       minio: { condition: service_healthy }
+      bootstrap: { condition: service_completed_successfully }
     volumes:
       - canonical-data:/data/objects/canonical
 
