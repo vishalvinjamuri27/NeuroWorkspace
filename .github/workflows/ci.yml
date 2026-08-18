@@ -77,7 +77,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       COMPOSE_PROJECT_NAME: neuroworkspace-ci
-      COMPOSE_STATE: ${{ runner.temp }}/neuroworkspace-compose-state.json
+      COMPOSE_STATE: /tmp/neuroworkspace-compose-state.json
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -110,7 +110,7 @@ jobs:
       - name: Boot the empty stack and validate initialization
         run: |
           docker compose up -d
-          for attempt in $(seq 1 240); do
+          for _ in $(seq 1 240); do
             if curl --fail --silent http://localhost:8000/health/ready >/dev/null && \
                curl --fail --silent http://localhost:3000 >/dev/null; then
               break
@@ -140,7 +140,7 @@ jobs:
         run: |
           docker compose down
           docker compose up -d
-          for attempt in $(seq 1 240); do
+          for _ in $(seq 1 240); do
             if curl --fail --silent http://localhost:8000/health/ready >/dev/null && \
                curl --fail --silent http://localhost:3000 >/dev/null; then
               break
