@@ -75,6 +75,7 @@ jobs:
 
   compose:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     env:
       COMPOSE_PROJECT_NAME: neuroworkspace-ci
       COMPOSE_STATE: /tmp/neuroworkspace-compose-state.json
@@ -103,6 +104,7 @@ jobs:
           docker compose version
           docker info
           cp .env.example .env
+          docker compose config --quiet
           docker compose down -v --remove-orphans
           /usr/bin/time -f 'clean_build_seconds=%e' -o "$RUNNER_TEMP/compose-build-metrics.txt" \
             docker compose build --no-cache
