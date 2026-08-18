@@ -35,11 +35,12 @@ need provenance/migration implications and a reviewer familiar with the domain.
 
 ## Governance and releases
 
-Initial maintainers use lightweight maintainer review and public ADRs. Security
-reports use a private channel. Semantic versioning governs API/package releases;
-early APIs may change only with changelog/migration notes. Releases are signed
-where infrastructure permits, produce SBOM/provenance artifacts, and publish test/
-real-data matrix links without data files.
+Initial maintainers use the lightweight policy in `GOVERNANCE.md` and public ADRs.
+Security reports use a private channel. Semantic versioning governs API/package
+releases; early APIs may change only with changelog/migration notes. Releases
+publish test/real-data matrix links without data files. Signing, SBOM generation,
+and build provenance remain explicit release-hardening work until implemented and
+verified.
 
 `v0.1.0` means alpha-ready under `ALPHA_READINESS_REPORT.md`, not production or
 clinical readiness. Support tiers are documented per format and operation.
@@ -50,4 +51,3 @@ Issue forms capture role, workflow, format/device, scale, expected output, impac
 and reproducible non-sensitive sample availability. Roadmap items carry one of:
 validated user need, hypothesis, engineering improvement, speculative idea.
 Quarterly summaries report repeated problems and removals as well as additions.
-

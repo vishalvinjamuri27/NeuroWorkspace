@@ -9,6 +9,8 @@ engineering tool—not a medical device or diagnostic system.
 > reported only when exercised against pinned public data. See the readiness report
 > before relying on a format.
 
+![NeuroWorkspace landing page and waveform preview](docs/assets/neuroworkspace-landing.png)
+
 ## What it is for
 
 - Open EDF/EDF+, BioSemi BDF, BrainVision, EEGLAB, FIF, or configured CSV data.
@@ -26,12 +28,15 @@ upload.
 ## Architecture
 
 Next.js renders a Canvas waveform viewer. FastAPI serves workspace resources and
-viewport-sized waveform envelopes. Celery workers use MNE for lazy scientific I/O,
-write immutable Zarr arrays/pyramids to S3-compatible storage, and keep job state/
-provenance in PostgreSQL. Redis delivers jobs and caches immutable requests.
+viewport-sized waveform envelopes. Celery workers use MNE for scientific I/O,
+write immutable Zarr arrays/pyramids to a shared durable volume in the first Docker
+deployment, and keep job state/provenance in PostgreSQL. Source uploads and exports
+use private S3-compatible storage; Redis delivers jobs. A fully object-native
+canonical Zarr backend remains a documented scale-out item.
 
 See [technical design](docs/TECH_DESIGN.md), [data model](docs/DATA_MODEL.md),
-[viewer design](docs/VIEWER_DESIGN.md), and [threat model](docs/THREAT_MODEL.md).
+[viewer design](docs/VIEWER_DESIGN.md), [threat model](docs/THREAT_MODEL.md), and
+[measured alpha-readiness report](docs/ALPHA_READINESS_REPORT.md).
 
 ## Quickstart
 
@@ -64,13 +69,13 @@ make build
 
 | Format | Planned P0 | Real-data acceptance |
 |---|---:|---|
-| EDF / EDF+ | yes | see `docs/ALPHA_READINESS_REPORT.md` when generated |
-| BioSemi BDF | yes | independent public BDF required |
-| BrainVision `.vhdr/.vmrk/.eeg` | yes | grouped real upload required |
-| EEGLAB `.set` / optional `.fdt` | yes | real companion structure required |
-| MNE FIF | yes | official MNE file required |
+| EDF / EDF+ | yes | PhysioNet Sleep-EDF Expanded 1.0.0 |
+| BioSemi BDF | yes | HBN-EEG challenge R1 public BDF derivative |
+| BrainVision `.vhdr/.vmrk/.eeg` | yes | OpenNeuro ds006547 v1.0.0 |
+| EEGLAB `.set` / optional `.fdt` | yes | OpenNeuro ds004362 v1.0.0 |
+| MNE FIF | yes | official MNE testing-data fixture |
 | configured CSV/TSV | yes | schema wizard and generated fixture |
-| BIDS EEG dataset | foundation/P1 | one minimal real subset required |
+| BIDS EEG dataset | foundation/P1 | OpenNeuro ds004362 subset via MNE-BIDS |
 
 No table cell implies untested compatibility. Fetch scripts keep large recordings
 outside Git and verify checksums; see [real-data plan](docs/REAL_DATA_TEST_PLAN.md).
