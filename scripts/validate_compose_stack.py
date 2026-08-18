@@ -255,7 +255,13 @@ def _waveform(client: httpx.Client, recording_id: str) -> dict[str, Any]:
             "load waveform",
         )
     )
-    if not waveform.get("channels") or not waveform.get("min_values"):
+    channels = waveform.get("channels")
+    if (
+        not isinstance(channels, list)
+        or not channels
+        or not channels[0].get("minimum")
+        or not channels[0].get("maximum")
+    ):
         raise RuntimeError("waveform response did not contain persisted signal data")
     return waveform
 
