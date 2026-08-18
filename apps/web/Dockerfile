@@ -14,6 +14,16 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 COPY apps/web apps/web
 COPY packages/shared-types packages/shared-types
 RUN pnpm --filter @neuroworkspace/web build
+# Next's standalone file tracer can retain pnpm's @swc/helpers symlinks while
+# copying only the CommonJS helper files. The production server loads the ESM
+# helpers on Linux, so make that traced package complete before the runtime
+# stage copies the standalone tree.
+RUN set -eu; \
+    helper_source="$(find /app/node_modules/.pnpm -path '*/node_modules/@swc/helpers' -type d -print -quit)"; \
+    helper_target="$(find /app/apps/web/.next/standalone/node_modules/.pnpm -path '*/node_modules/@swc/helpers' -type d -print -quit)"; \
+    test -n "$helper_source"; \
+    test -n "$helper_target"; \
+    cp -R "$helper_source/." "$helper_target/"
 
 FROM node:24.8.0-alpine AS runtime
 ENV NODE_ENV=production \
