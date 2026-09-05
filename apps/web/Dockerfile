@@ -1,4 +1,4 @@
-FROM node:24.8.0-alpine AS builder
+FROM node:26.8.1-alpine AS builder
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 RUN corepack enable
@@ -41,7 +41,7 @@ RUN set -eu; \
     test -n "$helper_target"; \
     cp -R "$helper_source/." "$helper_target/"
 
-FROM node:24.8.0-alpine AS runtime
+FROM node:26.8.1-alpine AS runtime
 ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     PORT=3000
