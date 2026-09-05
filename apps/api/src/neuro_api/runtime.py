@@ -11,11 +11,12 @@ from sqlalchemy import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from neuro_workspace.auth import Identity, LoginStateSigner, OIDCVerifier, SessionSigner
+from neuro_workspace.cache import ViewportCache
 from neuro_workspace.config import Settings
 from neuro_workspace.db.models import User
 from neuro_workspace.errors import NeuroError
 from neuro_workspace.services.access import ensure_user
-from neuro_workspace.signal_store import LocalZarrSignalStore
+from neuro_workspace.signal_store import ZarrSignalStore
 from neuro_workspace.storage import ObjectStore
 
 
@@ -25,7 +26,8 @@ class Runtime:
     engine: Engine
     session_factory: sessionmaker[Session]
     object_store: ObjectStore
-    signal_store: LocalZarrSignalStore
+    signal_store: ZarrSignalStore
+    cache: ViewportCache
     signer: SessionSigner
     login_state_signer: LoginStateSigner
     oidc: OIDCVerifier | None

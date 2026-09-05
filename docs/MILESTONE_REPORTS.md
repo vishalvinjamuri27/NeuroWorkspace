@@ -1,5 +1,10 @@
 # Milestone verification reports
 
+> **Historical snapshot — architecture has since changed**, notably the move
+> to S3-backed canonical signal storage ([ADR 0007](adr/0007-object-store-canonical-signal-storage.md)).
+> Kept for history; see [PERFORMANCE.md](PERFORMANCE.md) and
+> [RUNTIME_VALIDATION.md](RUNTIME_VALIDATION.md) for current, measured state.
+
 These reports record implementation evidence as of 2026-08-18. Commands and full
 results are consolidated in `ALPHA_READINESS_REPORT.md`.
 

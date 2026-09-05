@@ -1,8 +1,13 @@
 import type {
   Annotation,
+  BadChannel,
   Channel,
   Event,
+  ExportRecord,
+  Job,
+  Page,
   Project,
+  ProcessingRun,
   QCResult,
   Recording,
   WaveformWindow,
@@ -22,6 +27,12 @@ export class APIError extends Error {
   ) {
     super(message);
   }
+}
+
+/** True for the conflict this app treats as a real, user-facing case: a
+ * stale optimistic-concurrency revision (annotations, bad channels). */
+export function isConflict(error: unknown): error is APIError {
+  return error instanceof APIError && error.status === 409;
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -51,6 +62,17 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (await response.json()) as T;
 }
 
+function cursorQuery(
+  params: Record<string, string | number | undefined>,
+): string {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined) query.set(key, String(value));
+  }
+  const serialized = query.toString();
+  return serialized ? `?${serialized}` : "";
+}
+
 const waveformCache = new Map<string, Promise<WaveformWindow>>();
 
 export const api = {
@@ -72,8 +94,18 @@ export const api = {
   recording: (id: string) => request<Recording>(`/recordings/${id}`),
   channels: (id: string) => request<Channel[]>(`/recordings/${id}/channels`),
   events: (id: string) => request<Event[]>(`/recordings/${id}/events`),
-  annotations: (id: string) =>
-    request<Annotation[]>(`/recordings/${id}/annotations`),
+  // Cursor-paginated (see AnnotationPage / neuro_workspace.pagination): a
+  // recording with a huge annotation count cannot force an unbounded query.
+  // Callers follow next_cursor explicitly with annotationsAfter() below
+  // rather than this module trying to guess when to auto-page.
+  annotations: (id: string, limit = 200) =>
+    request<Page<Annotation>>(
+      `/recordings/${id}/annotations${cursorQuery({ limit })}`,
+    ),
+  annotationsAfter: (id: string, cursor: string, limit = 200) =>
+    request<Page<Annotation>>(
+      `/recordings/${id}/annotations${cursorQuery({ limit, cursor })}`,
+    ),
   qc: (id: string) => request<QCResult>(`/recordings/${id}/qc`),
   waveform: (
     id: string,
@@ -81,6 +113,7 @@ export const api = {
     duration: number,
     channelIndices: number[],
     pixelWidth: number,
+    signal?: AbortSignal,
   ) => {
     const query = new URLSearchParams({
       start_seconds: start.toString(),
@@ -90,12 +123,17 @@ export const api = {
     channelIndices.forEach((index) =>
       query.append("channel_index", index.toString()),
     );
+    const path = `/recordings/${id}/waveform?${query}`;
+    // A caller that passes a signal is rendering the primary, user-visible
+    // viewport and needs this exact request to be cancellable when a newer
+    // pan/zoom supersedes it -- so it bypasses the shared de-dupe cache
+    // (aborting a cached promise would also break any other in-flight
+    // caller waiting on the same window, e.g. neighbor prefetch below).
+    if (signal) return request<WaveformWindow>(path, { signal });
     const key = `${id}?${query.toString()}`;
     const cached = waveformCache.get(key);
     if (cached) return cached;
-    const pending = request<WaveformWindow>(
-      `/recordings/${id}/waveform?${query}`,
-    ).catch((error: unknown) => {
+    const pending = request<WaveformWindow>(path).catch((error: unknown) => {
       waveformCache.delete(key);
       throw error;
     });
@@ -136,12 +174,41 @@ export const api = {
       method: "DELETE",
       body: JSON.stringify({ revision }),
     }),
-  setBadChannel: (recordingId: string, channelId: string, bad: boolean) =>
-    request(`/recordings/${recordingId}/bad-channels/${channelId}`, {
+  // Refetches a single annotation's current server state after a 409, by
+  // re-listing (there is no single-annotation GET) and finding it. Small
+  // lists in practice -- a recording's annotations are already capped by
+  // the viewer's page size -- so this is an acceptable cost for a
+  // conflict-recovery path that is not on any hot path.
+  annotationById: async (
+    recordingId: string,
+    annotationId: string,
+  ): Promise<Annotation | null> => {
+    let cursor: string | undefined;
+    for (let page = 0; page < 20; page += 1) {
+      const result: Page<Annotation> = cursor
+        ? await api.annotationsAfter(recordingId, cursor)
+        : await api.annotations(recordingId);
+      const found = result.items.find((item) => item.id === annotationId);
+      if (found) return found;
+      if (!result.next_cursor) return null;
+      cursor = result.next_cursor;
+    }
+    return null;
+  },
+  badChannels: (id: string) => request<BadChannel[]>(`/recordings/${id}/bad-channels`),
+  setBadChannel: (
+    recordingId: string,
+    channelId: string,
+    bad: boolean,
+    expectedRevision: number,
+    reason = "Manual viewer review",
+  ) =>
+    request<BadChannel>(`/recordings/${recordingId}/bad-channels/${channelId}`, {
       method: "PUT",
       body: JSON.stringify({
         state: bad ? "confirmed_bad" : "confirmed_good",
-        reason: "Manual viewer review",
+        reason,
+        revision: expectedRevision,
       }),
     }),
   createWorkspace: (name: string) =>
@@ -152,8 +219,15 @@ export const api = {
   workspaces: () => request<Workspace[]>("/workspaces"),
   projects: (workspaceId: string) =>
     request<Project[]>(`/workspaces/${workspaceId}/projects`),
-  recordings: (projectId: string) =>
-    request<Recording[]>(`/projects/${projectId}/recordings`),
+  // Same cursor-paginated shape as annotations() above.
+  recordings: (projectId: string, limit = 100) =>
+    request<Page<Recording>>(
+      `/projects/${projectId}/recordings${cursorQuery({ limit })}`,
+    ),
+  recordingsAfter: (projectId: string, cursor: string, limit = 100) =>
+    request<Page<Recording>>(
+      `/projects/${projectId}/recordings${cursorQuery({ limit, cursor })}`,
+    ),
   createProject: (workspaceId: string, name: string) =>
     request<Project>(`/workspaces/${workspaceId}/projects`, {
       method: "POST",
@@ -192,20 +266,27 @@ export const api = {
       `/uploads/${uploadId}/complete`,
       { method: "POST" },
     ),
-  job: (id: string) =>
-    request<{
-      id: string;
-      status: string;
-      stage: string;
-      progress: number;
-      error_message: string | null;
-      diagnostic_id: string | null;
-    }>(`/jobs/${id}`),
+  job: (id: string) => request<Job>(`/jobs/${id}`),
+  cancelJob: (id: string) =>
+    request<Job>(`/jobs/${id}/cancel`, { method: "POST" }),
+  createProcessingRun: (
+    recordingId: string,
+    operationId: "average_reference",
+    parameters: { channel_indices: number[] },
+    idempotencyKey: string,
+  ) =>
+    request<ProcessingRun>(`/recordings/${recordingId}/processing-runs`, {
+      method: "POST",
+      body: JSON.stringify({ operation_id: operationId, parameters }),
+      headers: { "Idempotency-Key": idempotencyKey },
+    }),
+  processingRuns: (recordingId: string) =>
+    request<ProcessingRun[]>(`/recordings/${recordingId}/processing-runs`),
   createExport: (
     recordingId: string,
     formatId: "annotations_csv" | "provenance_json" | "qc_json",
   ) =>
-    request<{ id: string }>(`/recordings/${recordingId}/exports`, {
+    request<ExportRecord>(`/recordings/${recordingId}/exports`, {
       method: "POST",
       body: JSON.stringify({ format_id: formatId }),
     }),

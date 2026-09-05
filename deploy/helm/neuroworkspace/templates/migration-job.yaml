@@ -1,0 +1,109 @@
+{{- if .Values.migrationJob.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  # Fixed name (not release-revision-suffixed) plus the hook-delete-policy
+  # below: Helm deletes any Job left over from a prior install/upgrade
+  # before creating this one, since Job.spec is immutable and a stale
+  # failed Job would otherwise block every future upgrade.
+  name: {{ include "neuroworkspace.fullname" . }}-migrate
+  labels:
+    {{- include "neuroworkspace.labels" . | nindent 4 }}
+  annotations:
+    # The k8s-native equivalent of docker-compose's one-shot `bootstrap`
+    # service: runs `alembic upgrade head` to completion before any
+    # api/worker pod from this release is allowed to be scheduled by
+    # Argo/Flux/`helm upgrade --wait`, and is retried (backoffLimit) rather
+    # than left as a silent half-migrated cluster state.
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ .Values.migrationJob.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.migrationJob.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        {{- include "neuroworkspace.labels" . | nindent 8 }}
+        {{- include "neuroworkspace.selectorLabels" (dict "component" "migrate" "Release" .Release "Chart" .Chart) | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      # Deliberately NOT serviceAccountName: {{ include "neuroworkspace.serviceAccountName" . }}
+      # -- a pre-install Helm hook runs before any of the chart's ordinary
+      # (non-hook) resources exist, so on a clean cluster this Job would
+      # try to run as a ServiceAccount that has not been created yet
+      # (found by actually running `helm install` against a real kind
+      # cluster: "serviceaccount ... not found", not caught by `helm
+      # lint`/`helm template`). The custom ServiceAccount exists only to
+      # get automountServiceAccountToken: false; setting that directly
+      # here achieves the identical security posture using the
+      # namespace's always-present "default" ServiceAccount instead, with
+      # no hook-ordering dependency.
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100 # matches USER 100:101 in apps/api and apps/worker Dockerfiles
+        seccompProfile: { type: RuntimeDefault }
+      initContainers:
+        # Even with dev-postgres.yaml hooked to a weight before this Job
+        # (see its own comment), Helm does not block on a non-Job hook
+        # resource becoming Ready before moving to the next weight -- it
+        # only guarantees the Deployment/Service *exist*, not that
+        # Postgres is accepting connections yet. Found live: the Service
+        # existed but the first few connection attempts still raced a
+        # Postgres pod that was still starting. Retries here, not a fixed
+        # sleep, since "how long Postgres takes to start" is not a
+        # constant worth guessing at.
+        - name: wait-for-database
+          image: {{ include "neuroworkspace.image" (dict "Values" .Values "Chart" .Chart "imageName" "api") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - python
+            - -c
+            - |
+              import os, sys, time
+              import sqlalchemy
+              url = os.environ["DATABASE_URL"]
+              deadline = time.monotonic() + 60
+              last_error = None
+              while time.monotonic() < deadline:
+                  try:
+                      sqlalchemy.create_engine(url).connect().close()
+                      print("database is reachable")
+                      sys.exit(0)
+                  except Exception as exc:  # noqa: BLE001
+                      last_error = exc
+                      time.sleep(2)
+              print(f"database never became reachable: {last_error}", file=sys.stderr)
+              sys.exit(1)
+          env:
+            {{- include "neuroworkspace.commonEnv" . | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      containers:
+        - name: migrate
+          image: {{ include "neuroworkspace.image" (dict "Values" .Values "Chart" .Chart "imageName" "api") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["alembic", "upgrade", "head"]
+          env:
+            {{- include "neuroworkspace.commonEnv" . | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+{{- end }}

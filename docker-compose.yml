@@ -43,6 +43,14 @@ services:
       timeout: 3s
       retries: 20
 
+  # api, worker, worker-beat, and bootstrap intentionally mount no shared
+  # volume for canonical signal data: with OBJECT_STORE_BACKEND=s3 (this
+  # stack's default), neuro_workspace.signal_store.create_signal_store
+  # returns an S3ZarrSignalStore that reads/writes canonical Zarr arrays
+  # directly against MinIO over HTTP. Every replica of every service talks to
+  # the same bucket independently, so this stack scales api/worker
+  # horizontally with `docker compose up --scale api=N --scale worker=M`
+  # without provisioning a network filesystem.
   bootstrap:
     build:
       context: .
@@ -53,8 +61,6 @@ services:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
       minio: { condition: service_healthy }
-    volumes:
-      - canonical-data:/data/objects/canonical
     restart: "no"
 
   api:
@@ -69,8 +75,6 @@ services:
       redis: { condition: service_healthy }
       minio: { condition: service_healthy }
       bootstrap: { condition: service_completed_successfully }
-    volumes:
-      - canonical-data:/data/objects/canonical
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready')"]
       interval: 10s
@@ -87,8 +91,23 @@ services:
       redis: { condition: service_healthy }
       minio: { condition: service_healthy }
       bootstrap: { condition: service_completed_successfully }
-    volumes:
-      - canonical-data:/data/objects/canonical
+
+  # A single scheduler process, not one per worker replica: it is the
+  # transactional-outbox dispatcher and lease-reclaim sweep (see
+  # neuro_worker.celery_app.reclaim_jobs / services.jobs.run_dispatch_sweep).
+  # Running it here instead of embedding `-B` in every worker keeps the sweep
+  # from firing N times as `worker` is scaled horizontally.
+  worker-beat:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    env_file: .env
+    command: ["celery", "-A", "neuro_worker.celery_app:celery_app", "beat", "--loglevel=INFO"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
+      bootstrap: { condition: service_completed_successfully }
 
   web:
     build:
@@ -103,8 +122,25 @@ services:
     depends_on:
       api: { condition: service_healthy }
 
+  # Opt-in: `docker compose --profile observability up` also brings up
+  # Prometheus scraping the API's /metrics (see
+  # neuro_workspace.metrics). There is no Grafana dashboard checked in --
+  # shipping unverified panel JSON is worse than none; point Grafana or any
+  # other Prometheus-compatible viewer at this datasource and build one
+  # against real metric names once the stack has real traffic.
+  prometheus:
+    image: prom/prometheus:v3.7.3
+    profiles: ["observability"]
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      api: { condition: service_healthy }
+
 volumes:
   postgres-data:
   redis-data:
   minio-data:
-  canonical-data:
+  prometheus-data:

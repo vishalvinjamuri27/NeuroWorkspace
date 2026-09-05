@@ -46,7 +46,10 @@ typecheck: ## Run Python and TypeScript type checks
 test: test-python test-web ## Run fast automated tests
 
 test-python: ## Run Python unit/integration tests except external real data
-	uv run pytest tests/python -m "not real_data"
+	uv run pytest tests/python -m "not real_data and not s3_integration"
+
+test-s3: ## Run the S3-backed signal store suite against a Docker-launched MinIO
+	uv run pytest tests/python -m s3_integration -v
 
 test-web: ## Run frontend tests
 	pnpm test
@@ -61,6 +64,13 @@ build: ## Build all deployable components
 openapi: ## Regenerate checked-in OpenAPI and frontend types
 	uv run python scripts/export_openapi.py
 	pnpm --filter @neuroworkspace/shared-types generate
+
+helm-lint: ## Lint the Kubernetes Helm chart (client-side, no cluster needed)
+	helm lint deploy/helm/neuroworkspace
+	helm lint deploy/helm/neuroworkspace -f deploy/helm/neuroworkspace/values.yaml -f deploy/helm/neuroworkspace/values-dev.yaml
+
+helm-template: ## Render the Helm chart to plain manifests (client-side, no cluster needed)
+	helm template nw deploy/helm/neuroworkspace
 
 real-data: ## Fetch and run public real-data acceptance tests
 	uv run python scripts/fetch_test_data.py fetch --sample sleep_edf_sc4001

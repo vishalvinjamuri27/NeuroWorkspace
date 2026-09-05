@@ -9,10 +9,13 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+import structlog
 from celery import Celery
-from fastapi import APIRouter, BackgroundTasks, Depends, Query, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
+from sqlalchemy import update as sa_update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from neuro_api.runtime import (
@@ -25,6 +28,7 @@ from neuro_api.runtime import (
 from neuro_api.schemas import (
     AnnotationCreate,
     AnnotationDelete,
+    AnnotationPage,
     AnnotationResponse,
     AnnotationUpdate,
     BadChannelResponse,
@@ -36,6 +40,7 @@ from neuro_api.schemas import (
     JobResponse,
     ProcessingRunCreate,
     ProcessingRunResponse,
+    RecordingPage,
     RecordingResponse,
 )
 from neuro_workspace.auth import Identity
@@ -57,6 +62,13 @@ from neuro_workspace.db.models import (
 from neuro_workspace.domain import Capability, JobKind, RecordingState
 from neuro_workspace.errors import ConflictError, ForbiddenError, ValidationError
 from neuro_workspace.exports import export_annotations_csv, export_provenance_json
+from neuro_workspace.pagination import (
+    DEFAULT_PAGE_SIZE,
+    MAX_PAGE_SIZE,
+    encode_datetime_cursor,
+    encode_float_cursor,
+    paginate,
+)
 from neuro_workspace.product_analytics import track_product_event
 from neuro_workspace.services.access import (
     ensure_user,
@@ -64,9 +76,15 @@ from neuro_workspace.services.access import (
     project_for_user,
     recording_for_user,
 )
-from neuro_workspace.services.jobs import execute_deletion_job, execute_processing_job
+from neuro_workspace.services.jobs import (
+    execute_deletion_job,
+    execute_processing_job,
+    mark_dispatched,
+    request_cancellation,
+)
 
 router = APIRouter()
+logger = structlog.get_logger(__name__)
 
 
 def _public_or_authorized_recording(
@@ -96,7 +114,9 @@ def _active_version(recording: Recording) -> str:
     return recording.active_version_id
 
 
-def _dispatch_processing(background: BackgroundTasks, runtime: Runtime, job_id: str) -> None:
+def _dispatch_processing(
+    background: BackgroundTasks, runtime: Runtime, session: Session, job_id: str
+) -> None:
     if runtime.settings.worker_eager:
         background.add_task(
             execute_processing_job,
@@ -105,13 +125,21 @@ def _dispatch_processing(background: BackgroundTasks, runtime: Runtime, job_id: 
             settings=runtime.settings,
             job_id=job_id,
         )
-    else:
+        mark_dispatched(session, job_id)
+        return
+    try:
         Celery(broker=runtime.settings.redis_url).send_task(
             "neuroworkspace.process", args=[job_id], queue="processing"
         )
+    except Exception:
+        logger.warning("job_dispatch_failed", job_id=job_id, kind="processing")
+        return
+    mark_dispatched(session, job_id)
 
 
-def _dispatch_deletion(background: BackgroundTasks, runtime: Runtime, job_id: str) -> None:
+def _dispatch_deletion(
+    background: BackgroundTasks, runtime: Runtime, session: Session, job_id: str
+) -> None:
     if runtime.settings.worker_eager:
         background.add_task(
             execute_deletion_job,
@@ -120,25 +148,46 @@ def _dispatch_deletion(background: BackgroundTasks, runtime: Runtime, job_id: st
             signal_store=runtime.signal_store,
             job_id=job_id,
         )
-    else:
+        mark_dispatched(session, job_id)
+        return
+    try:
         Celery(broker=runtime.settings.redis_url).send_task(
             "neuroworkspace.delete", args=[job_id], queue="maintenance"
         )
+    except Exception:
+        logger.warning("job_dispatch_failed", job_id=job_id, kind="deletion")
+        return
+    mark_dispatched(session, job_id)
 
 
-@router.get("/projects/{project_id}/recordings", response_model=list[RecordingResponse])
+@router.get("/projects/{project_id}/recordings", response_model=RecordingPage)
 def list_recordings(
     project_id: str,
+    cursor: str | None = Query(default=None),
+    limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     user: User = Depends(current_user),
     session: Session = Depends(get_db),
-) -> list[RecordingResponse]:
+) -> RecordingPage:
     project = project_for_user(session, user.id, project_id)
-    rows = session.scalars(
+    stmt = (
         select(Recording)
         .where(Recording.project_id == project.id, Recording.deleted_at.is_(None))
-        .order_by(Recording.created_at.desc(), Recording.id)
-    ).all()
-    return [RecordingResponse.model_validate(row) for row in rows]
+        .order_by(Recording.created_at.desc(), Recording.id.desc())
+    )
+    rows, has_more = paginate(
+        session,
+        stmt,
+        sort_column=Recording.created_at,
+        id_column=Recording.id,
+        cursor=cursor,
+        limit=limit,
+    )
+    next_cursor = (
+        encode_datetime_cursor(rows[-1].created_at, rows[-1].id) if has_more and rows else None
+    )
+    return RecordingPage(
+        items=[RecordingResponse.model_validate(row) for row in rows], next_cursor=next_cursor
+    )
 
 
 @router.get("/demo/recording", response_model=RecordingResponse)
@@ -211,9 +260,11 @@ def list_events(
     return [EventResponse.model_validate(event) for event in events]
 
 
-@router.get("/recordings/{recording_id}/waveform")
+@router.get("/recordings/{recording_id}/waveform", response_model=None)
 def get_waveform(
     recording_id: str,
+    request: Request,
+    response: Response,
     start_seconds: float = Query(0, ge=0),
     duration_seconds: float = Query(10, gt=0),
     channel_index: list[int] = Query(default=[]),
@@ -221,7 +272,16 @@ def get_waveform(
     identity: Identity | None = Depends(optional_identity),
     session: Session = Depends(get_db),
     runtime: Runtime = Depends(get_runtime),
-) -> dict[str, Any]:
+) -> dict[str, Any] | Response:
+    """Return one bounded viewport window.
+
+    A RecordingVersion is immutable once it exists (ADR 0002/0007), so this
+    response is fully determined by (version_id, channels, window,
+    resolution) -- a strong ETag and a cache-aside Redis lookup are both
+    safe here with no invalidation logic needed, only a TTL. `If-None-Match`
+    short-circuits before touching Redis or the signal store at all.
+    """
+
     recording = _public_or_authorized_recording(session, recording_id, identity)
     if len(channel_index) > runtime.settings.max_waveform_channels:
         raise ValidationError(
@@ -237,6 +297,20 @@ def get_waveform(
     if not channel_index:
         channel_count = int(recording.safe_metadata.get("channel_count", 0))
         channel_index = list(range(min(channel_count, 32)))
+
+    cache_key = runtime.cache.waveform_key(
+        version_id, channel_index, start_seconds, duration_seconds, pixel_width
+    )
+    etag = f'"{cache_key.rsplit(":", 1)[-1]}"'
+    cache_headers = {"ETag": etag, "Cache-Control": "private, max-age=3600, immutable"}
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=cache_headers)
+
+    cached = runtime.cache.get_waveform(cache_key)
+    if cached is not None:
+        response.headers.update(cache_headers)
+        return cached
+
     window = runtime.signal_store.query(
         version_id, channel_index, start_seconds, duration_seconds, pixel_width
     )
@@ -245,22 +319,56 @@ def get_waveform(
         raise ValidationError(
             "waveform_too_large", "Reduce visible channels or viewport width and try again."
         )
-    return asdict(window)
+    window_dict = asdict(window)
+    runtime.cache.set_waveform(cache_key, window_dict)
+    response.headers.update(cache_headers)
+    return window_dict
 
 
-@router.get("/recordings/{recording_id}/annotations", response_model=list[AnnotationResponse])
+@router.get("/recordings/{recording_id}/annotations", response_model=AnnotationPage)
 def list_annotations(
     recording_id: str,
+    start_seconds: float | None = Query(default=None, ge=0),
+    end_seconds: float | None = Query(default=None, gt=0),
+    cursor: str | None = Query(default=None),
+    limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     identity: Identity | None = Depends(optional_identity),
     session: Session = Depends(get_db),
-) -> list[AnnotationResponse]:
+) -> AnnotationPage:
+    """List annotations, oldest-onset first, cursor-paginated.
+
+    `start_seconds`/`end_seconds` bound the query to annotations whose own
+    onset falls in that window -- the viewer uses this to avoid loading
+    every annotation in a multi-hour recording just to render one viewport.
+    This does not also match an annotation that started before the window
+    but is still running through it (there is no index on duration to make
+    that cheap); the viewer widens its query window slightly to compensate.
+    """
+
     _public_or_authorized_recording(session, recording_id, identity)
-    annotations = session.scalars(
-        select(Annotation)
-        .where(Annotation.recording_id == recording_id, Annotation.deleted_at.is_(None))
-        .order_by(Annotation.onset_seconds, Annotation.id)
-    ).all()
-    return [AnnotationResponse.model_validate(annotation) for annotation in annotations]
+    stmt = select(Annotation).where(
+        Annotation.recording_id == recording_id, Annotation.deleted_at.is_(None)
+    )
+    if start_seconds is not None:
+        stmt = stmt.where(Annotation.onset_seconds >= start_seconds)
+    if end_seconds is not None:
+        stmt = stmt.where(Annotation.onset_seconds < end_seconds)
+    stmt = stmt.order_by(Annotation.onset_seconds, Annotation.id)
+    rows, has_more = paginate(
+        session,
+        stmt,
+        sort_column=Annotation.onset_seconds,
+        id_column=Annotation.id,
+        cursor=cursor,
+        limit=limit,
+        descending=False,
+    )
+    next_cursor = (
+        encode_float_cursor(rows[-1].onset_seconds, rows[-1].id) if has_more and rows else None
+    )
+    return AnnotationPage(
+        items=[AnnotationResponse.model_validate(row) for row in rows], next_cursor=next_cursor
+    )
 
 
 @router.post(
@@ -311,21 +419,38 @@ def update_annotation(
     if annotation is None or annotation.deleted_at is not None:
         raise ForbiddenError()
     recording = recording_for_user(session, user.id, annotation.recording_id, Capability.ANNOTATE)
-    if annotation.revision != body.revision:
-        raise ConflictError(
-            "annotation_revision_conflict", "This annotation changed. Reload before editing it."
-        )
     if (
         body.onset_seconds + body.duration_seconds
         > float(recording.safe_metadata.get("duration_seconds", 0)) + 1e-9
     ):
         raise ValidationError("annotation_out_of_bounds", "The annotation exceeds the recording.")
-    annotation.onset_seconds = body.onset_seconds
-    annotation.duration_seconds = body.duration_seconds
-    annotation.label = body.label.strip()
-    annotation.description = body.description.strip()
-    annotation.updater_id = user.id
-    annotation.revision += 1
+    # Compare-and-swap in the UPDATE's WHERE clause, not in Python: two
+    # concurrent PATCHes that both read revision=N can otherwise both pass a
+    # Python-side equality check and one silently overwrites the other. Only
+    # one UPDATE can match this row per revision value, so the loser gets
+    # rowcount 0 -- an explicit 409 -- instead of being silently discarded.
+    result = session.execute(
+        sa_update(Annotation)
+        .where(
+            Annotation.id == annotation_id,
+            Annotation.revision == body.revision,
+            Annotation.deleted_at.is_(None),
+        )
+        .values(
+            onset_seconds=body.onset_seconds,
+            duration_seconds=body.duration_seconds,
+            label=body.label.strip(),
+            description=body.description.strip(),
+            updater_id=user.id,
+            revision=Annotation.revision + 1,
+        )
+        .execution_options(synchronize_session=False)
+    )
+    if result.rowcount == 0:  # type: ignore[attr-defined]
+        session.rollback()
+        raise ConflictError(
+            "annotation_revision_conflict", "This annotation changed. Reload before editing it."
+        )
     track_product_event(
         session,
         "annotation_updated",
@@ -334,6 +459,7 @@ def update_annotation(
         recording_id=recording.id,
     )
     session.commit()
+    session.refresh(annotation)
     return AnnotationResponse.model_validate(annotation)
 
 
@@ -350,13 +476,25 @@ def delete_annotation(
     if annotation is None or annotation.deleted_at is not None:
         raise ForbiddenError()
     recording = recording_for_user(session, user.id, annotation.recording_id, Capability.ANNOTATE)
-    if annotation.revision != body.revision:
+    result = session.execute(
+        sa_update(Annotation)
+        .where(
+            Annotation.id == annotation_id,
+            Annotation.revision == body.revision,
+            Annotation.deleted_at.is_(None),
+        )
+        .values(
+            deleted_at=datetime.now(UTC),
+            updater_id=user.id,
+            revision=Annotation.revision + 1,
+        )
+        .execution_options(synchronize_session=False)
+    )
+    if result.rowcount == 0:  # type: ignore[attr-defined]
+        session.rollback()
         raise ConflictError(
             "annotation_revision_conflict", "This annotation changed. Reload before deleting it."
         )
-    annotation.deleted_at = datetime.now(UTC)
-    annotation.updater_id = user.id
-    annotation.revision += 1
     track_product_event(
         session,
         "annotation_deleted",
@@ -365,6 +503,22 @@ def delete_annotation(
         recording_id=recording.id,
     )
     session.commit()
+
+
+@router.get("/recordings/{recording_id}/bad-channels", response_model=list[BadChannelResponse])
+def list_bad_channels(
+    recording_id: str,
+    identity: Identity | None = Depends(optional_identity),
+    session: Session = Depends(get_db),
+) -> list[BadChannelResponse]:
+    recording = _public_or_authorized_recording(session, recording_id, identity)
+    rows = session.scalars(
+        select(BadChannel).where(
+            BadChannel.recording_id == recording.id,
+            BadChannel.version_id == recording.active_version_id,
+        )
+    ).all()
+    return [BadChannelResponse.model_validate(row) for row in rows]
 
 
 @router.put(
@@ -377,6 +531,18 @@ def set_bad_channel(
     user: User = Depends(current_user),
     session: Session = Depends(get_db),
 ) -> BadChannelResponse:
+    """Compare-and-swap review state for one channel.
+
+    Mirrors update_annotation's CAS: the client sends the revision it last
+    observed (0 for "no one has reviewed this channel yet"), and a
+    conditional UPDATE -- not a Python-side equality check -- decides the
+    winner when two reviewers race. The insert path (revision 0, row does
+    not exist yet) has the same race one level up: two concurrent first
+    reviews can both pass the "row is None" check, so the unique constraint
+    on (recording_id, version_id, channel_id) is the real backstop there,
+    surfaced as the same 409 rather than a raw IntegrityError.
+    """
+
     recording = recording_for_user(session, user.id, recording_id, Capability.ANNOTATE)
     channel = session.scalar(
         select(Channel).where(
@@ -392,19 +558,50 @@ def set_bad_channel(
             BadChannel.channel_id == channel.id,
         )
     )
+    current_revision = row.revision if row is not None else 0
+    if body.revision != current_revision:
+        raise ConflictError(
+            "bad_channel_revision_conflict",
+            "This channel's review status changed. Reload before editing it.",
+        )
     if row is None:
         row = BadChannel(
             recording_id=recording.id,
             version_id=recording.active_version_id,
             channel_id=channel.id,
             actor_id=user.id,
+            state=body.state,
+            reason=body.reason.strip(),
+            revision=1,
         )
         session.add(row)
+        try:
+            session.flush()
+        except IntegrityError:
+            session.rollback()
+            raise ConflictError(
+                "bad_channel_revision_conflict",
+                "This channel's review status changed. Reload before editing it.",
+            ) from None
     else:
-        row.revision += 1
-    row.state = body.state
-    row.reason = body.reason.strip()
-    row.actor_id = user.id
+        result = session.execute(
+            sa_update(BadChannel)
+            .where(BadChannel.id == row.id, BadChannel.revision == body.revision)
+            .values(
+                state=body.state,
+                reason=body.reason.strip(),
+                actor_id=user.id,
+                revision=BadChannel.revision + 1,
+            )
+            .execution_options(synchronize_session=False)
+        )
+        if result.rowcount == 0:  # type: ignore[attr-defined]
+            session.rollback()
+            raise ConflictError(
+                "bad_channel_revision_conflict",
+                "This channel's review status changed. Reload before editing it.",
+            )
+        session.refresh(row)
     if body.state == "confirmed_bad":
         track_product_event(
             session,
@@ -414,6 +611,7 @@ def set_bad_channel(
             recording_id=recording.id,
         )
     session.commit()
+    session.refresh(row)
     return BadChannelResponse.model_validate(row)
 
 
@@ -422,9 +620,20 @@ def get_qc(
     recording_id: str,
     identity: Identity | None = Depends(optional_identity),
     session: Session = Depends(get_db),
+    runtime: Runtime = Depends(get_runtime),
 ) -> dict[str, Any]:
+    """QC summary, cache-aside keyed by the immutable active version_id.
+
+    Same reasoning as the waveform cache (ADR 0002/0007): the metrics and
+    flags for a version_id cannot change once QC has run, so there is no
+    invalidation to implement -- only a TTL.
+    """
+
     recording = _public_or_authorized_recording(session, recording_id, identity)
     version_id = _active_version(recording)
+    cached = runtime.cache.get_qc(version_id)
+    if cached is not None:
+        return cached
     metrics = session.execute(
         select(QCMetric, Channel.name)
         .outerjoin(Channel, Channel.id == QCMetric.channel_id)
@@ -436,7 +645,7 @@ def get_qc(
         .join(QCMetric, QCMetric.id == QCFlag.metric_id)
         .where(QCMetric.version_id == version_id)
     ).all()
-    return {
+    result = {
         "disclaimer": "Automated review heuristics, not medical or diagnostic conclusions.",
         "metrics": [
             {
@@ -464,6 +673,8 @@ def get_qc(
             for flag, channel_id in flags
         ],
     }
+    runtime.cache.set_qc(version_id, result)
+    return result
 
 
 @router.post(
@@ -475,26 +686,72 @@ def create_processing_run(
     recording_id: str,
     body: ProcessingRunCreate,
     background: BackgroundTasks,
+    response: Response,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     user: User = Depends(current_user),
     session: Session = Depends(get_db),
     runtime: Runtime = Depends(get_runtime),
 ) -> ProcessingRunResponse:
+    """Start a processing run.
+
+    A client-supplied Idempotency-Key makes retries safe: submitting the same
+    key twice (a network retry, a double-click) returns the original run
+    instead of launching duplicate processing work and a duplicate
+    RecordingVersion. Without a key, each call is a genuinely new request, so
+    no dedup is attempted -- the client is asserting the retry is a distinct
+    intent.
+    """
+
     recording = recording_for_user(session, user.id, recording_id, Capability.PROCESS)
     version_id = _active_version(recording)
     channel_count = int(recording.safe_metadata.get("channel_count", 0))
     indices = body.parameters["channel_indices"]
     if max(indices) >= channel_count:
         raise ValidationError("invalid_channels", "A reference channel index is not available.")
+
+    key = (
+        f"process:{recording.id}:{idempotency_key}"
+        if idempotency_key
+        else f"process:{recording.id}:{uuid.uuid4().hex}"
+    )
+
+    def _existing_run() -> ProcessingRun | None:
+        existing_job = session.scalar(
+            select(Job).where(
+                Job.workspace_id == recording.workspace_id, Job.idempotency_key == key
+            )
+        )
+        if existing_job is None:
+            return None
+        return session.scalar(select(ProcessingRun).where(ProcessingRun.job_id == existing_job.id))
+
+    if idempotency_key:
+        found = _existing_run()
+        if found is not None:
+            response.status_code = 200
+            return ProcessingRunResponse.model_validate(found)
+
     job = Job(
         workspace_id=recording.workspace_id,
         kind=JobKind.PROCESSING,
         subject_type="recording",
         subject_id=recording.id,
-        idempotency_key=f"process:{recording.id}:{uuid.uuid4().hex}",
+        idempotency_key=key,
         stage="Queued",
     )
     session.add(job)
-    session.flush()
+    try:
+        session.flush()
+    except IntegrityError:
+        # Lost a race against a concurrent request carrying the same
+        # Idempotency-Key; the winner's row is now visible.
+        session.rollback()
+        found = _existing_run()
+        if found is None:
+            raise
+        response.status_code = 200
+        return ProcessingRunResponse.model_validate(found)
+
     run = ProcessingRun(
         recording_id=recording.id,
         input_version_id=version_id,
@@ -514,7 +771,8 @@ def create_processing_run(
         properties={"operation_id": body.operation_id},
     )
     session.commit()
-    _dispatch_processing(background, runtime, job.id)
+    _dispatch_processing(background, runtime, session, job.id)
+    response.status_code = 202
     return ProcessingRunResponse.model_validate(run)
 
 
@@ -635,6 +893,7 @@ def create_export(
                     recording.id,
                     Identity(user.external_subject, user.email, user.display_name),
                     session,
+                    runtime,
                 )
                 path.write_text(json.dumps(qc, indent=2, sort_keys=True) + "\n", encoding="utf-8")
             info = runtime.object_store.put_file(key, path)
@@ -695,8 +954,32 @@ def get_job(
     session: Session = Depends(get_db),
 ) -> JobResponse:
     job = job_for_user(session, user.id, job_id)
-    if job.status.value in {"QUEUED", "RUNNING"}:
+    if job.status.value in {"QUEUED", "RUNNING", "CANCEL_REQUESTED"}:
         response.headers["Retry-After"] = "2"
+    return JobResponse.model_validate(job)
+
+
+@router.post("/jobs/{job_id}/cancel", response_model=JobResponse)
+def cancel_job(
+    job_id: str,
+    user: User = Depends(current_user),
+    session: Session = Depends(get_db),
+) -> JobResponse:
+    """Request cancellation.
+
+    A QUEUED job is cancelled immediately. A RUNNING job cannot be
+    interrupted safely from here (its worker may be inside a blocking C
+    extension call), so this only flags CANCEL_REQUESTED; the executor
+    finalizes it to CANCELLED at its next cooperative checkpoint -- see
+    is_cancel_requested() in services.jobs. A job already in a terminal
+    state is left untouched (cancelling a SUCCEEDED job is meaningless, not
+    an error the client needs to see).
+    """
+
+    job_for_user(session, user.id, job_id, Capability.PROCESS)
+    job = request_cancellation(session, job_id)
+    if job is None:
+        raise ForbiddenError()
     return JobResponse.model_validate(job)
 
 
@@ -725,5 +1008,5 @@ def delete_recording(
     )
     session.add(job)
     session.commit()
-    _dispatch_deletion(background, runtime, job.id)
+    _dispatch_deletion(background, runtime, session, job.id)
     return JobResponse.model_validate(job)

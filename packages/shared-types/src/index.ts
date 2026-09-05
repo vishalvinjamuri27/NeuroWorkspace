@@ -7,6 +7,15 @@ export type Annotation = components["schemas"]["AnnotationResponse"];
 export type Workspace = components["schemas"]["WorkspaceResponse"];
 export type Project = components["schemas"]["ProjectResponse"];
 export type Job = components["schemas"]["JobResponse"];
+export type JobStatus = components["schemas"]["JobState"];
+export type BadChannel = components["schemas"]["BadChannelResponse"];
+export type ProcessingRun = components["schemas"]["ProcessingRunResponse"];
+export type ExportRecord = components["schemas"]["ExportResponse"];
+
+export interface Page<T> {
+  items: T[];
+  next_cursor: string | null;
+}
 
 export interface WaveformChannel {
   index: number;

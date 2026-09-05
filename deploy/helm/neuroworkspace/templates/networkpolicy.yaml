@@ -1,0 +1,66 @@
+{{/*
+Ingress-only restriction, deliberately not a namespace-wide default-deny.
+Egress is left unrestricted: api/worker/worker-beat all need to reach
+Postgres/Redis/S3 endpoints that are external to the cluster and whose
+CIDRs this chart cannot know in advance -- a default-deny egress policy
+templated blind would be a real risk of silently breaking every real
+cluster this chart is installed into. Tighten egress with environment-
+specific rules once those endpoints are known; do not copy this file as
+"the app is network-locked-down."
+*/}}
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "neuroworkspace.fullname" . }}-api-ingress
+  labels:
+    {{- include "neuroworkspace.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "neuroworkspace.selectorLabels" (dict "component" "api" "Release" .Release "Chart" .Chart) | nindent 6 }}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespaceLabel }}
+      ports:
+        - port: http
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "neuroworkspace.fullname" . }}-web-ingress
+  labels:
+    {{- include "neuroworkspace.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "neuroworkspace.selectorLabels" (dict "component" "web" "Release" .Release "Chart" .Chart) | nindent 6 }}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespaceLabel }}
+      ports:
+        - port: http
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "neuroworkspace.fullname" . }}-worker-deny-ingress
+  labels:
+    {{- include "neuroworkspace.labels" . | nindent 4 }}
+spec:
+  # Workers never listen for inbound connections (they poll the broker
+  # outbound); an empty `ingress: []` with this policyType denies all of it.
+  podSelector:
+    matchLabels:
+      {{- include "neuroworkspace.selectorLabels" (dict "component" "worker" "Release" .Release "Chart" .Chart) | nindent 6 }}
+  policyTypes: ["Ingress"]
+  ingress: []
+{{- end }}

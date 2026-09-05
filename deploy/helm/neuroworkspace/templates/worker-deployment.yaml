@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "neuroworkspace.fullname" . }}-worker
+  labels:
+    {{- include "neuroworkspace.labels" . | nindent 4 }}
+    {{- include "neuroworkspace.selectorLabels" (dict "component" "worker" "Release" .Release "Chart" .Chart) | nindent 4 }}
+spec:
+  {{- if not .Values.worker.autoscaling.enabled }}
+  replicas: {{ .Values.worker.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "neuroworkspace.selectorLabels" (dict "component" "worker" "Release" .Release "Chart" .Chart) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "neuroworkspace.labels" . | nindent 8 }}
+        {{- include "neuroworkspace.selectorLabels" (dict "component" "worker" "Release" .Release "Chart" .Chart) | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "neuroworkspace.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      # task_acks_late + task_reject_on_worker_lost (celery_app.py) mean a
+      # task SIGKILLed mid-flight is redelivered by the broker, and
+      # claim_job()'s lease/CAS (services.jobs) makes picking it back up
+      # effectively-once regardless of which replica gets it next -- so
+      # this grace period exists to let an in-flight job reach its next
+      # natural checkpoint (LeaseHeartbeat-covered), not to guarantee zero
+      # interruption, which the job system does not need.
+      terminationGracePeriodSeconds: {{ .Values.worker.terminationGracePeriodSeconds }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100 # matches USER 100:101 in apps/api and apps/worker Dockerfiles
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: worker
+          image: {{ include "neuroworkspace.image" (dict "Values" .Values "Chart" .Chart "imageName" "worker") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - celery
+            - -A
+            - neuro_worker.celery_app:celery_app
+            - worker
+            - --loglevel=INFO
+            - --queues={{ .Values.worker.queues }}
+          env:
+            # celery inspect ping below needs to address this exact pod's
+            # worker (hostname defaults to the pod name, but that is not
+            # implicitly available as $(HOSTNAME) inside an exec array
+            # unless supplied explicitly via the downward API).
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef: { fieldPath: metadata.name }
+            {{- include "neuroworkspace.commonEnv" . | nindent 12 }}
+          livenessProbe:
+            exec:
+              command:
+                - celery
+                - -A
+                - neuro_worker.celery_app:celery_app
+                - inspect
+                - ping
+                - --destination=celery@$(HOSTNAME)
+                - --timeout=8
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 15
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.worker.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

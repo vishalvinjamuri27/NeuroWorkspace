@@ -1,0 +1,58 @@
+{{- if .Values.devDependencies.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "neuroworkspace.fullname" . }}-minio
+  labels:
+    {{- include "neuroworkspace.labels" . | nindent 4 }}
+  annotations:
+    # Same reasoning as dev-postgres.yaml, including pre-install-only (not
+    # pre-upgrade) to avoid wiping this emptyDir on every upgrade.
+    helm.sh/hook: pre-install
+    helm.sh/hook-weight: "-3"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "neuroworkspace.selectorLabels" (dict "component" "dev-minio" "Release" .Release "Chart" .Chart) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "neuroworkspace.selectorLabels" (dict "component" "dev-minio" "Release" .Release "Chart" .Chart) | nindent 8 }}
+    spec:
+      containers:
+        - name: minio
+          image: minio/minio:RELEASE.2025-07-23T15-54-02Z
+          args: ["server", "/data", "--console-address", ":9001"]
+          env:
+            - { name: MINIO_ROOT_USER, value: {{ .Values.secrets.dev.s3AccessKey | quote }} }
+            - { name: MINIO_ROOT_PASSWORD, value: {{ .Values.secrets.dev.s3SecretKey | quote }} }
+          ports:
+            - { name: s3, containerPort: 9000 }
+            - { name: console, containerPort: 9001 }
+          readinessProbe:
+            httpGet: { path: /minio/health/live, port: s3 }
+            periodSeconds: 5
+          volumeMounts:
+            - { name: data, mountPath: /data }
+      volumes:
+        - { name: data, emptyDir: {} }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "neuroworkspace.fullname" . }}-minio
+  labels:
+    {{- include "neuroworkspace.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-install
+    helm.sh/hook-weight: "-3"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  selector:
+    {{- include "neuroworkspace.selectorLabels" (dict "component" "dev-minio" "Release" .Release "Chart" .Chart) | nindent 4 }}
+  ports:
+    - { name: s3, port: 9000, targetPort: s3 }
+    - { name: console, port: 9001, targetPort: console }
+{{- end }}

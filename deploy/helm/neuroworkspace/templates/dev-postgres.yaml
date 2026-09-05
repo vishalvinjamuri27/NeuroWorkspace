@@ -1,0 +1,90 @@
+{{- if .Values.devDependencies.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "neuroworkspace.fullname" . }}-postgres
+  labels:
+    {{- include "neuroworkspace.labels" . | nindent 4 }}
+  annotations:
+    # This dev-only Postgres and the migration Job that needs it are both
+    # bundled in the same Helm release. A pre-install hook (the migration
+    # Job, weight "0") runs before any ordinary resource exists, so
+    # without this, `helm install` on a clean cluster fails every time:
+    # the migration Job cannot resolve this Service's DNS name because it
+    # does not exist yet (found by actually running `helm install`
+    # against a real kind cluster: "failed to resolve host
+    # ...-postgres"). Hooking this Deployment+Service at an earlier
+    # weight guarantees they exist before the migration Job starts; the
+    # migration Job's own init-container retry loop (see
+    # migration-job.yaml) handles the remaining "exists but not Ready
+    # yet" gap, since Helm does not block on non-Job hook readiness.
+    #
+    # pre-install ONLY, deliberately not pre-upgrade: this Deployment's
+    # `emptyDir` volume is this dev database's only copy of its data.
+    # `helm.sh/hook-delete-policy: before-hook-creation` deletes and
+    # recreates a hook resource on every operation it fires for -- adding
+    # pre-upgrade here was tried and reproduced real data loss (`helm
+    # upgrade` wiped Postgres and Redis, and the following pre-upgrade
+    # migration Job then ran against a freshly empty database). Since the
+    # Service already exists (created once, at install), the pre-upgrade
+    # migration Job can still resolve and reach it with no hook needed on
+    # this resource for that operation.
+    helm.sh/hook: pre-install
+    helm.sh/hook-weight: "-3"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels:
+      {{- include "neuroworkspace.selectorLabels" (dict "component" "dev-postgres" "Release" .Release "Chart" .Chart) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "neuroworkspace.selectorLabels" (dict "component" "dev-postgres" "Release" .Release "Chart" .Chart) | nindent 8 }}
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:18.4-alpine
+          env:
+            - { name: POSTGRES_DB, value: neuroworkspace }
+            - { name: POSTGRES_USER, value: neuroworkspace }
+            - { name: POSTGRES_PASSWORD, value: neuroworkspace }
+          ports:
+            - { name: postgres, containerPort: 5432 }
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "neuroworkspace"] }
+            periodSeconds: 5
+          volumeMounts:
+            # Not /var/lib/postgresql/data: postgres:18+'s image places data
+            # in a major-version-specific subdirectory under
+            # /var/lib/postgresql itself and refuses to start if something
+            # else is mounted directly at .../data (found by actually
+            # starting this pod on a real cluster -- it crash-looped with
+            # "these Docker images are configured to store database data in
+            # a format which is compatible with pg_ctlcluster"). Matches
+            # docker-compose.yml's postgres service, which already mounts
+            # at the parent directory for the same reason.
+            - { name: data, mountPath: /var/lib/postgresql }
+      volumes:
+        # emptyDir: dev/demo only, data does not survive a pod restart. A
+        # real deployment does not run its database of record in-cluster --
+        # see values.yaml.
+        - { name: data, emptyDir: {} }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "neuroworkspace.fullname" . }}-postgres
+  labels:
+    {{- include "neuroworkspace.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-install
+    helm.sh/hook-weight: "-3"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  selector:
+    {{- include "neuroworkspace.selectorLabels" (dict "component" "dev-postgres" "Release" .Release "Chart" .Chart) | nindent 4 }}
+  ports:
+    - { name: postgres, port: 5432, targetPort: postgres }
+{{- end }}

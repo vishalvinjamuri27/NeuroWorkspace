@@ -1,0 +1,14 @@
+{{- if .Values.api.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "neuroworkspace.fullname" . }}-api
+  labels:
+    {{- include "neuroworkspace.labels" . | nindent 4 }}
+    {{- include "neuroworkspace.selectorLabels" (dict "component" "api" "Release" .Release "Chart" .Chart) | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.api.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "neuroworkspace.selectorLabels" (dict "component" "api" "Release" .Release "Chart" .Chart) | nindent 6 }}
+{{- end }}

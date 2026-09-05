@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from neuro_workspace.domain import AssetRole, Role
+from neuro_workspace.domain import AssetRole, JobState, Role
 
 
 class ORMModel(BaseModel):
@@ -236,6 +236,11 @@ class RecordingResponse(ORMModel):
     created_at: datetime
 
 
+class RecordingPage(BaseModel):
+    items: list[RecordingResponse]
+    next_cursor: str | None
+
+
 class ChannelResponse(ORMModel):
     id: str
     channel_index: int
@@ -290,9 +295,18 @@ class AnnotationResponse(ORMModel):
     updated_at: datetime
 
 
+class AnnotationPage(BaseModel):
+    items: list[AnnotationResponse]
+    next_cursor: str | None
+
+
 class BadChannelUpdate(BaseModel):
     state: Literal["confirmed_bad", "confirmed_good"]
     reason: str = Field(default="", max_length=500)
+    # The revision the client last observed for this channel; 0 means "I
+    # believe no one has marked this channel yet." Enforced as a real
+    # compare-and-swap in the route, the same pattern as annotations.
+    revision: int = Field(ge=0)
 
 
 class BadChannelResponse(ORMModel):
@@ -355,7 +369,7 @@ class JobResponse(ORMModel):
     kind: str
     subject_type: str
     subject_id: str
-    status: str
+    status: JobState
     attempt: int
     progress: float
     stage: str

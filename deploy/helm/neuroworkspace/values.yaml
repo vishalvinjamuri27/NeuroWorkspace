@@ -1,0 +1,182 @@
+# Default values target a real cluster with externally-provisioned Postgres,
+# Redis, and S3-compatible storage (RDS/Cloud SQL, ElastiCache/MemoryStore,
+# S3/GCS/MinIO-in-front-of-a-bucket) -- that is the correct production shape,
+# not a Helm-bundled StatefulSet running your database of record. For a local
+# kind/minikube demo, layer values-dev.yaml on top:
+#   helm install nw . -f values.yaml -f values-dev.yaml
+#
+# Nothing in this chart has been applied against a live cluster in the
+# session that authored it (no cluster was reachable); `helm lint` and
+# `helm template` (both fully client-side) are what validated it. Run
+# `helm install --dry-run` against a real cluster before trusting it further.
+
+image:
+  registry: ghcr.io/neuroworkspace
+  tag: "" # defaults to .Chart.AppVersion
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# Non-secret application configuration. Mirrors .env.example. Merged into a
+# ConfigMap and exposed as env vars on every workload -- see
+# templates/_helpers.tpl `neuroworkspace.envFrom`.
+config:
+  environment: production
+  objectStoreBackend: s3
+  corsOrigins: "https://app.example.com"
+  apiPublicUrl: "https://api.example.com"
+  webPublicUrl: "https://app.example.com"
+  nextPublicApiUrl: "https://api.example.com/api"
+  sessionCookieName: nw_session
+  sessionTtlSeconds: 28800
+  devAuthEnabled: false
+  requireDemoReady: true
+  workerEager: false
+  # Quoted: Helm converts values.yaml through YAML->JSON->Go, and JSON
+  # numbers unmarshal to float64 for interface{} targets. Go's default
+  # float64 string formatting switches to scientific notation at >= 1e6
+  # (fmt.Sprint(1500000.0) == "1.5e+06"), which `quote` in _helpers.tpl
+  # would then bake into the env var literally -- Pydantic fails to parse
+  # "2.147483648e+10" as an int. Keeping these as strings here sidesteps the
+  # float roundtrip entirely. Verified by rendering with `helm template`.
+  maxUploadBytes: "21474836480"
+  maxUploadFiles: 16
+  maxWaveformChannels: 256
+  maxWaveformPixels: 4096
+  maxWaveformPoints: "1500000"
+  waveformCacheSeconds: 300
+  logLevel: INFO
+  buildVersion: "" # defaults to .Chart.AppVersion
+  featureFlags: ""
+  alphaAdminEmails: ""
+  s3Bucket: neuroworkspace
+  s3EndpointUrl: ""
+  s3PublicEndpointUrl: ""
+  oidcIssuer: ""
+  oidcAudience: ""
+  oidcClientId: ""
+
+# Secret application configuration. By default this chart creates nothing
+# and expects `existingSecret` to name a Secret you provisioned out-of-band
+# (kubectl create secret, sealed-secrets, External Secrets Operator, etc.)
+# with keys DATABASE_URL, REDIS_URL, SESSION_SECRET, S3_ACCESS_KEY,
+# S3_SECRET_KEY, OIDC_CLIENT_SECRET. Setting create=true (values-dev.yaml
+# does this) makes the chart create the Secret from `dev` below instead --
+# never do that in production, the values would land in your Helm release
+# history in plaintext.
+secrets:
+  create: false
+  existingSecret: neuroworkspace-secrets
+  dev:
+    databaseUrl: ""
+    redisUrl: ""
+    sessionSecret: ""
+    s3AccessKey: ""
+    s3SecretKey: ""
+    oidcClientSecret: ""
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+api:
+  replicaCount: 2
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { cpu: "1", memory: 1Gi }
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+  service:
+    port: 80
+    targetPort: 8000
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+worker:
+  replicaCount: 2
+  queues: "ingestion,processing,maintenance"
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits: { cpu: "2", memory: 2Gi }
+  autoscaling:
+    # CPU-based autoscaling is the baseline every cluster supports out of the
+    # box. Queue-depth-based scaling (e.g. KEDA's Redis/Celery scaler,
+    # reading queue length directly) is the more accurate signal for a job
+    # worker and is the natural next step, but is not wired up here -- it
+    # needs KEDA installed as a cluster-level dependency this chart does not
+    # assume, and I have no cluster to validate a ScaledObject against.
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 75
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+  terminationGracePeriodSeconds: 120 # let an in-flight job reach its next checkpoint
+
+workerBeat:
+  # Exactly one replica: it is the outbox dispatcher / lease-reclaim
+  # scheduler (services.jobs.run_dispatch_sweep on a Celery beat schedule),
+  # not a queue consumer. Running more than one only duplicates sweep work
+  # harmlessly (claim_job()'s CAS still makes execution effectively-once) --
+  # replicaCount is fixed, not autoscaled, because there is nothing to scale.
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 250m, memory: 256Mi }
+
+web:
+  replicaCount: 2
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 75
+  service:
+    port: 80
+    targetPort: 3000
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-production
+  api:
+    host: api.example.com
+    tls: true
+  web:
+    host: app.example.com
+    tls: true
+
+migrationJob:
+  # A pre-install/pre-upgrade Helm hook Job running `alembic upgrade head`,
+  # not a long-running bootstrap sidecar -- the k8s-native equivalent of
+  # docker-compose's `bootstrap` service. See templates/migration-job.yaml.
+  enabled: true
+  backoffLimit: 2
+  activeDeadlineSeconds: 600
+
+networkPolicy:
+  # Default-deny plus explicit allow rules. ingressNamespace should match
+  # your ingress controller's namespace label (see the policy for the exact
+  # selector) -- the default assumes a namespace labeled
+  # kubernetes.io/metadata.name=ingress-nginx.
+  enabled: true
+  ingressNamespaceLabel: ingress-nginx
+
+# Bundled dev-only dependencies (single-replica, no persistence beyond an
+# emptyDir, no HA, no backups) so this chart can stand up something usable
+# on a local kind/minikube cluster. NEVER enable in production -- see the
+# Chart.yaml description and docs/KUBERNETES.md.
+devDependencies:
+  enabled: false

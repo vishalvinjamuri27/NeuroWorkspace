@@ -6,6 +6,7 @@ import unicodedata
 import uuid
 from pathlib import Path
 
+import structlog
 from celery import Celery
 from fastapi import APIRouter, BackgroundTasks, Depends, UploadFile
 from sqlalchemy import select
@@ -24,9 +25,10 @@ from neuro_workspace.domain import Capability, JobKind, RecordingState
 from neuro_workspace.errors import ConflictError, ForbiddenError, ValidationError
 from neuro_workspace.product_analytics import format_category, size_bucket, track_product_event
 from neuro_workspace.services.access import project_for_user
-from neuro_workspace.services.jobs import execute_ingestion_job
+from neuro_workspace.services.jobs import execute_ingestion_job, mark_dispatched
 
 router = APIRouter()
+logger = structlog.get_logger(__name__)
 
 
 def _safe_filename(name: str) -> str:
@@ -38,7 +40,9 @@ def _safe_filename(name: str) -> str:
     return normalized
 
 
-def _dispatch_ingestion(background: BackgroundTasks, runtime: Runtime, job_id: str) -> None:
+def _dispatch_ingestion(
+    background: BackgroundTasks, runtime: Runtime, session: Session, job_id: str
+) -> None:
     if runtime.settings.worker_eager:
         background.add_task(
             execute_ingestion_job,
@@ -49,10 +53,19 @@ def _dispatch_ingestion(background: BackgroundTasks, runtime: Runtime, job_id: s
             settings=runtime.settings,
             job_id=job_id,
         )
-    else:
+        mark_dispatched(session, job_id)
+        return
+    try:
         Celery(broker=runtime.settings.redis_url).send_task(
             "neuroworkspace.ingest", args=[job_id], queue="ingestion"
         )
+    except Exception:
+        # The Job row already committed durably; the outbox sweep
+        # (find_undispatched_jobs) redrives it, so a broker outage here must
+        # not fail a request whose database state is otherwise correct.
+        logger.warning("job_dispatch_failed", job_id=job_id, kind="ingestion")
+        return
+    mark_dispatched(session, job_id)
 
 
 @router.post("/projects/{project_id}/uploads", response_model=UploadResponse, status_code=201)
@@ -259,7 +272,12 @@ def complete_upload(
         kind=JobKind.INGESTION,
         subject_type="recording",
         subject_id=recording.id,
-        idempotency_key=f"ingest:{recording.id}:{uuid.uuid4().hex}",
+        # Deterministic per-recording: a recording is only ever completed once
+        # (guarded by the upload.status != "UPLOADING" check above), so the
+        # unique (workspace_id, idempotency_key) constraint is a real,
+        # database-enforced guarantee against a duplicate ingestion job for
+        # the same recording rather than decoration.
+        idempotency_key=f"ingest:{recording.id}",
         stage="Inspecting",
     )
     session.add(job)
@@ -276,7 +294,7 @@ def complete_upload(
         },
     )
     session.commit()
-    _dispatch_ingestion(background, runtime, job.id)
+    _dispatch_ingestion(background, runtime, session, job.id)
     return UploadCompleteResponse(
         recording_id=recording.id, job_id=job.id, state=recording.state.value
     )

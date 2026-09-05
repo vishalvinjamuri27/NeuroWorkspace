@@ -27,7 +27,10 @@
             "type": "number"
           }
         },
-        "required": ["onset_seconds", "label"],
+        "required": [
+          "onset_seconds",
+          "label"
+        ],
         "title": "AnnotationCreate",
         "type": "object"
       },
@@ -39,8 +42,38 @@
             "type": "integer"
           }
         },
-        "required": ["revision"],
+        "required": [
+          "revision"
+        ],
         "title": "AnnotationDelete",
+        "type": "object"
+      },
+      "AnnotationPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AnnotationResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "AnnotationPage",
         "type": "object"
       },
       "AnnotationResponse": {
@@ -155,7 +188,12 @@
             "type": "integer"
           }
         },
-        "required": ["revision", "onset_seconds", "duration_seconds", "label"],
+        "required": [
+          "revision",
+          "onset_seconds",
+          "duration_seconds",
+          "label"
+        ],
         "title": "AnnotationUpdate",
         "type": "object"
       },
@@ -217,13 +255,24 @@
             "title": "Reason",
             "type": "string"
           },
+          "revision": {
+            "minimum": 0.0,
+            "title": "Revision",
+            "type": "integer"
+          },
           "state": {
-            "enum": ["confirmed_bad", "confirmed_good"],
+            "enum": [
+              "confirmed_bad",
+              "confirmed_good"
+            ],
             "title": "State",
             "type": "string"
           }
         },
-        "required": ["state"],
+        "required": [
+          "state",
+          "revision"
+        ],
         "title": "BadChannelUpdate",
         "type": "object"
       },
@@ -235,7 +284,9 @@
             "type": "string"
           }
         },
-        "required": ["file"],
+        "required": [
+          "file"
+        ],
         "title": "Body_upload_local_content_api_uploads__upload_id__assets__asset_id__content_put",
         "type": "object"
       },
@@ -307,7 +358,11 @@
             "type": "array"
           }
         },
-        "required": ["channel_columns", "channel_names", "units"],
+        "required": [
+          "channel_columns",
+          "channel_names",
+          "units"
+        ],
         "title": "CSVConfigRequest",
         "type": "object"
       },
@@ -388,7 +443,10 @@
             "type": "string"
           }
         },
-        "required": ["email", "display_name"],
+        "required": [
+          "email",
+          "display_name"
+        ],
         "title": "DevSessionRequest",
         "type": "object"
       },
@@ -435,12 +493,18 @@
       "ExportCreate": {
         "properties": {
           "format_id": {
-            "enum": ["annotations_csv", "provenance_json", "qc_json"],
+            "enum": [
+              "annotations_csv",
+              "provenance_json",
+              "qc_json"
+            ],
             "title": "Format Id",
             "type": "string"
           }
         },
-        "required": ["format_id"],
+        "required": [
+          "format_id"
+        ],
         "title": "ExportCreate",
         "type": "object"
       },
@@ -682,7 +746,10 @@
             "title": "Workspace Id"
           }
         },
-        "required": ["category", "message"],
+        "required": [
+          "category",
+          "message"
+        ],
         "title": "FeedbackCreate",
         "type": "object"
       },
@@ -706,7 +773,12 @@
             "type": "string"
           }
         },
-        "required": ["id", "category", "status", "created_at"],
+        "required": [
+          "id",
+          "category",
+          "status",
+          "created_at"
+        ],
         "title": "FeedbackResponse",
         "type": "object"
       },
@@ -784,8 +856,7 @@
             "type": "string"
           },
           "status": {
-            "title": "Status",
-            "type": "string"
+            "$ref": "#/components/schemas/JobState"
           },
           "subject_id": {
             "title": "Subject Id",
@@ -818,6 +889,18 @@
         ],
         "title": "JobResponse",
         "type": "object"
+      },
+      "JobState": {
+        "enum": [
+          "QUEUED",
+          "RUNNING",
+          "SUCCEEDED",
+          "FAILED",
+          "CANCEL_REQUESTED",
+          "CANCELLED"
+        ],
+        "title": "JobState",
+        "type": "string"
       },
       "MembershipResponse": {
         "properties": {
@@ -862,7 +945,9 @@
             "$ref": "#/components/schemas/Role"
           }
         },
-        "required": ["role"],
+        "required": [
+          "role"
+        ],
         "title": "MembershipRoleUpdate",
         "type": "object"
       },
@@ -878,7 +963,10 @@
             "$ref": "#/components/schemas/Role"
           }
         },
-        "required": ["email", "role"],
+        "required": [
+          "email",
+          "role"
+        ],
         "title": "MembershipUpsert",
         "type": "object"
       },
@@ -895,7 +983,10 @@
             "type": "object"
           }
         },
-        "required": ["operation_id", "parameters"],
+        "required": [
+          "operation_id",
+          "parameters"
+        ],
         "title": "ProcessingRunCreate",
         "type": "object"
       },
@@ -1001,7 +1092,10 @@
             "type": "string"
           }
         },
-        "required": ["name", "session_id"],
+        "required": [
+          "name",
+          "session_id"
+        ],
         "title": "ProductEventCreate",
         "type": "object"
       },
@@ -1120,7 +1214,9 @@
             "type": "string"
           }
         },
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "title": "ProjectCreate",
         "type": "object"
       },
@@ -1148,8 +1244,42 @@
             "type": "string"
           }
         },
-        "required": ["id", "workspace_id", "name", "description", "created_at"],
+        "required": [
+          "id",
+          "workspace_id",
+          "name",
+          "description",
+          "created_at"
+        ],
         "title": "ProjectResponse",
+        "type": "object"
+      },
+      "RecordingPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RecordingResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "RecordingPage",
         "type": "object"
       },
       "RecordingResponse": {
@@ -1257,7 +1387,12 @@
         "type": "object"
       },
       "Role": {
-        "enum": ["owner", "admin", "member", "viewer"],
+        "enum": [
+          "owner",
+          "admin",
+          "member",
+          "viewer"
+        ],
         "title": "Role",
         "type": "string"
       },
@@ -1267,7 +1402,9 @@
             "$ref": "#/components/schemas/UserResponse"
           }
         },
-        "required": ["user"],
+        "required": [
+          "user"
+        ],
         "title": "SessionResponse",
         "type": "object"
       },
@@ -1301,7 +1438,10 @@
             "type": "integer"
           }
         },
-        "required": ["name", "size_bytes"],
+        "required": [
+          "name",
+          "size_bytes"
+        ],
         "title": "UploadAssetCreate",
         "type": "object"
       },
@@ -1357,7 +1497,11 @@
             "type": "string"
           }
         },
-        "required": ["recording_id", "job_id", "state"],
+        "required": [
+          "recording_id",
+          "job_id",
+          "state"
+        ],
         "title": "UploadCompleteResponse",
         "type": "object"
       },
@@ -1385,7 +1529,14 @@
           "format_hint": {
             "anyOf": [
               {
-                "enum": ["edf", "bdf", "brainvision", "eeglab", "fif", "csv"],
+                "enum": [
+                  "edf",
+                  "bdf",
+                  "brainvision",
+                  "eeglab",
+                  "fif",
+                  "csv"
+                ],
                 "type": "string"
               },
               {
@@ -1401,7 +1552,10 @@
             "type": "string"
           }
         },
-        "required": ["recording_name", "assets"],
+        "required": [
+          "recording_name",
+          "assets"
+        ],
         "title": "UploadCreate",
         "type": "object"
       },
@@ -1427,7 +1581,12 @@
             "type": "string"
           }
         },
-        "required": ["id", "status", "recording_name", "assets"],
+        "required": [
+          "id",
+          "status",
+          "recording_name",
+          "assets"
+        ],
         "title": "UploadResponse",
         "type": "object"
       },
@@ -1446,7 +1605,11 @@
             "type": "string"
           }
         },
-        "required": ["id", "email", "display_name"],
+        "required": [
+          "id",
+          "email",
+          "display_name"
+        ],
         "title": "UserResponse",
         "type": "object"
       },
@@ -1482,7 +1645,11 @@
             "type": "string"
           }
         },
-        "required": ["loc", "msg", "type"],
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
         "title": "ValidationError",
         "type": "object"
       },
@@ -1495,7 +1662,9 @@
             "type": "string"
           }
         },
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "title": "WorkspaceCreate",
         "type": "object"
       },
@@ -1578,7 +1747,13 @@
             "type": "string"
           }
         },
-        "required": ["id", "name", "slug", "role", "created_at"],
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "role",
+          "created_at"
+        ],
         "title": "WorkspaceResponse",
         "type": "object"
       }
@@ -1655,7 +1830,9 @@
           }
         },
         "summary": "List Feedback",
-        "tags": ["product evidence"]
+        "tags": [
+          "product evidence"
+        ]
       }
     },
     "/api/admin/product-metrics": {
@@ -1718,7 +1895,9 @@
           }
         },
         "summary": "Product Metrics",
-        "tags": ["product evidence"]
+        "tags": [
+          "product evidence"
+        ]
       }
     },
     "/api/annotations/{annotation_id}": {
@@ -1793,7 +1972,9 @@
           }
         },
         "summary": "Delete Annotation",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       },
       "patch": {
         "operationId": "update_annotation_api_annotations__annotation_id__patch",
@@ -1873,7 +2054,9 @@
           }
         },
         "summary": "Update Annotation",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/demo/recording": {
@@ -1892,7 +2075,9 @@
           }
         },
         "summary": "Get Demo Recording",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/exports/{export_id}/content": {
@@ -1962,7 +2147,9 @@
           }
         },
         "summary": "Download Export",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/feedback": {
@@ -2035,7 +2222,9 @@
           }
         },
         "summary": "Create Feedback",
-        "tags": ["product evidence"]
+        "tags": [
+          "product evidence"
+        ]
       }
     },
     "/api/jobs/{job_id}": {
@@ -2107,7 +2296,84 @@
           }
         },
         "summary": "Get Job",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
+      }
+    },
+    "/api/jobs/{job_id}/cancel": {
+      "post": {
+        "description": "Request cancellation.\n\nA QUEUED job is cancelled immediately. A RUNNING job cannot be\ninterrupted safely from here (its worker may be inside a blocking C\nextension call), so this only flags CANCEL_REQUESTED; the executor\nfinalizes it to CANCELLED at its next cooperative checkpoint -- see\nis_cancel_requested() in services.jobs. A job already in a terminal\nstate is left untouched (cancelling a SUCCEEDED job is meaningless, not\nan error the client needs to see).",
+        "operationId": "cancel_job_api_jobs__job_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "nw_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Nw Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Job",
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/product-events": {
@@ -2173,7 +2439,9 @@
           }
         },
         "summary": "Create Product Event",
-        "tags": ["product evidence"]
+        "tags": [
+          "product evidence"
+        ]
       }
     },
     "/api/projects/{project_id}/recordings": {
@@ -2187,6 +2455,34 @@
             "schema": {
               "title": "Project Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
             }
           },
           {
@@ -2227,11 +2523,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/RecordingResponse"
-                  },
-                  "title": "Response List Recordings Api Projects  Project Id  Recordings Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/RecordingPage"
                 }
               }
             },
@@ -2249,7 +2541,9 @@
           }
         },
         "summary": "List Recordings",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/projects/{project_id}/uploads": {
@@ -2331,7 +2625,9 @@
           }
         },
         "summary": "Create Upload",
-        "tags": ["uploads"]
+        "tags": [
+          "uploads"
+        ]
       }
     },
     "/api/recordings/{recording_id}": {
@@ -2403,7 +2699,9 @@
           }
         },
         "summary": "Delete Recording",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       },
       "get": {
         "operationId": "get_recording_api_recordings__recording_id__get",
@@ -2473,11 +2771,14 @@
           }
         },
         "summary": "Get Recording",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/recordings/{recording_id}/annotations": {
       "get": {
+        "description": "List annotations, oldest-onset first, cursor-paginated.\n\n`start_seconds`/`end_seconds` bound the query to annotations whose own\nonset falls in that window -- the viewer uses this to avoid loading\nevery annotation in a multi-hour recording just to render one viewport.\nThis does not also match an annotation that started before the window\nbut is still running through it (there is no index on duration to make\nthat cheap); the viewer widens its query window slightly to compensate.",
         "operationId": "list_annotations_api_recordings__recording_id__annotations_get",
         "parameters": [
           {
@@ -2487,6 +2788,68 @@
             "schema": {
               "title": "Recording Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "start_seconds",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start Seconds"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end_seconds",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End Seconds"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
             }
           },
           {
@@ -2527,11 +2890,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/AnnotationResponse"
-                  },
-                  "title": "Response List Annotations Api Recordings  Recording Id  Annotations Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/AnnotationPage"
                 }
               }
             },
@@ -2549,7 +2908,9 @@
           }
         },
         "summary": "List Annotations",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       },
       "post": {
         "operationId": "create_annotation_api_recordings__recording_id__annotations_post",
@@ -2629,11 +2990,92 @@
           }
         },
         "summary": "Create Annotation",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
+      }
+    },
+    "/api/recordings/{recording_id}/bad-channels": {
+      "get": {
+        "operationId": "list_bad_channels_api_recordings__recording_id__bad_channels_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recording_id",
+            "required": true,
+            "schema": {
+              "title": "Recording Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "nw_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Nw Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BadChannelResponse"
+                  },
+                  "title": "Response List Bad Channels Api Recordings  Recording Id  Bad Channels Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Bad Channels",
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/recordings/{recording_id}/bad-channels/{channel_id}": {
       "put": {
+        "description": "Compare-and-swap review state for one channel.\n\nMirrors update_annotation's CAS: the client sends the revision it last\nobserved (0 for \"no one has reviewed this channel yet\"), and a\nconditional UPDATE -- not a Python-side equality check -- decides the\nwinner when two reviewers race. The insert path (revision 0, row does\nnot exist yet) has the same race one level up: two concurrent first\nreviews can both pass the \"row is None\" check, so the unique constraint\non (recording_id, version_id, channel_id) is the real backstop there,\nsurfaced as the same 409 rather than a raw IntegrityError.",
         "operationId": "set_bad_channel_api_recordings__recording_id__bad_channels__channel_id__put",
         "parameters": [
           {
@@ -2720,7 +3162,9 @@
           }
         },
         "summary": "Set Bad Channel",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/recordings/{recording_id}/channels": {
@@ -2796,7 +3240,9 @@
           }
         },
         "summary": "List Channels",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/recordings/{recording_id}/events": {
@@ -2872,7 +3318,9 @@
           }
         },
         "summary": "List Events",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/recordings/{recording_id}/exports": {
@@ -2954,7 +3402,9 @@
           }
         },
         "summary": "Create Export",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/recordings/{recording_id}/processing-runs": {
@@ -3030,9 +3480,12 @@
           }
         },
         "summary": "List Processing Runs",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       },
       "post": {
+        "description": "Start a processing run.\n\nA client-supplied Idempotency-Key makes retries safe: submitting the same\nkey twice (a network retry, a double-click) returns the original run\ninstead of launching duplicate processing work and a duplicate\nRecordingVersion. Without a key, each call is a genuinely new request, so\nno dedup is attempted -- the client is asserting the retry is a distinct\nintent.",
         "operationId": "create_processing_run_api_recordings__recording_id__processing_runs_post",
         "parameters": [
           {
@@ -3042,6 +3495,22 @@
             "schema": {
               "title": "Recording Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
             }
           },
           {
@@ -3110,11 +3579,14 @@
           }
         },
         "summary": "Create Processing Run",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/recordings/{recording_id}/qc": {
       "get": {
+        "description": "QC summary, cache-aside keyed by the immutable active version_id.\n\nSame reasoning as the waveform cache (ADR 0002/0007): the metrics and\nflags for a version_id cannot change once QC has run, so there is no\ninvalidation to implement -- only a TTL.",
         "operationId": "get_qc_api_recordings__recording_id__qc_get",
         "parameters": [
           {
@@ -3184,11 +3656,14 @@
           }
         },
         "summary": "Get Qc",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/recordings/{recording_id}/waveform": {
       "get": {
+        "description": "Return one bounded viewport window.\n\nA RecordingVersion is immutable once it exists (ADR 0002/0007), so this\nresponse is fully determined by (version_id, channels, window,\nresolution) -- a strong ETag and a cache-aside Redis lookup are both\nsafe here with no invalidation logic needed, only a TTL. `If-None-Match`\nshort-circuits before touching Redis or the signal store at all.",
         "operationId": "get_waveform_api_recordings__recording_id__waveform_get",
         "parameters": [
           {
@@ -3283,11 +3758,7 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Waveform Api Recordings  Recording Id  Waveform Get",
-                  "type": "object"
-                }
+                "schema": {}
               }
             },
             "description": "Successful Response"
@@ -3304,7 +3775,9 @@
           }
         },
         "summary": "Get Waveform",
-        "tags": ["recordings"]
+        "tags": [
+          "recordings"
+        ]
       }
     },
     "/api/session": {
@@ -3316,7 +3789,9 @@
           }
         },
         "summary": "Delete Session",
-        "tags": ["identity and workspaces"]
+        "tags": [
+          "identity and workspaces"
+        ]
       },
       "get": {
         "operationId": "read_session_api_session_get",
@@ -3377,7 +3852,9 @@
           }
         },
         "summary": "Read Session",
-        "tags": ["identity and workspaces"]
+        "tags": [
+          "identity and workspaces"
+        ]
       }
     },
     "/api/session/config": {
@@ -3407,7 +3884,9 @@
           }
         },
         "summary": "Session Config",
-        "tags": ["identity and workspaces"]
+        "tags": [
+          "identity and workspaces"
+        ]
       }
     },
     "/api/session/dev": {
@@ -3446,7 +3925,9 @@
           }
         },
         "summary": "Create Dev Session",
-        "tags": ["identity and workspaces"]
+        "tags": [
+          "identity and workspaces"
+        ]
       }
     },
     "/api/session/oidc/callback": {
@@ -3493,7 +3974,9 @@
           }
         },
         "summary": "Complete Oidc Session",
-        "tags": ["identity and workspaces"]
+        "tags": [
+          "identity and workspaces"
+        ]
       }
     },
     "/api/session/oidc/login": {
@@ -3532,7 +4015,9 @@
           }
         },
         "summary": "Begin Oidc Session",
-        "tags": ["identity and workspaces"]
+        "tags": [
+          "identity and workspaces"
+        ]
       }
     },
     "/api/uploads/{upload_id}/assets/{asset_id}/content": {
@@ -3616,7 +4101,9 @@
           }
         },
         "summary": "Upload Local Content",
-        "tags": ["uploads"]
+        "tags": [
+          "uploads"
+        ]
       }
     },
     "/api/uploads/{upload_id}/complete": {
@@ -3688,7 +4175,9 @@
           }
         },
         "summary": "Complete Upload",
-        "tags": ["uploads"]
+        "tags": [
+          "uploads"
+        ]
       }
     },
     "/api/workspaces": {
@@ -3755,7 +4244,9 @@
           }
         },
         "summary": "List Workspaces",
-        "tags": ["identity and workspaces"]
+        "tags": [
+          "identity and workspaces"
+        ]
       },
       "post": {
         "operationId": "create_workspace_api_workspaces_post",
@@ -3826,7 +4317,9 @@
           }
         },
         "summary": "Create Workspace",
-        "tags": ["identity and workspaces"]
+        "tags": [
+          "identity and workspaces"
+        ]
       }
     },
     "/api/workspaces/{workspace_id}/memberships": {
@@ -3902,7 +4395,9 @@
           }
         },
         "summary": "List Memberships",
-        "tags": ["identity and workspaces"]
+        "tags": [
+          "identity and workspaces"
+        ]
       },
       "put": {
         "operationId": "upsert_membership_api_workspaces__workspace_id__memberships_put",
@@ -3982,7 +4477,9 @@
           }
         },
         "summary": "Upsert Membership",
-        "tags": ["identity and workspaces"]
+        "tags": [
+          "identity and workspaces"
+        ]
       }
     },
     "/api/workspaces/{workspace_id}/memberships/{membership_id}": {
@@ -4056,7 +4553,9 @@
           }
         },
         "summary": "Delete Membership",
-        "tags": ["identity and workspaces"]
+        "tags": [
+          "identity and workspaces"
+        ]
       },
       "patch": {
         "operationId": "update_membership_api_workspaces__workspace_id__memberships__membership_id__patch",
@@ -4145,7 +4644,9 @@
           }
         },
         "summary": "Update Membership",
-        "tags": ["identity and workspaces"]
+        "tags": [
+          "identity and workspaces"
+        ]
       }
     },
     "/api/workspaces/{workspace_id}/metrics": {
@@ -4218,7 +4719,9 @@
           }
         },
         "summary": "Get Workspace Metrics",
-        "tags": ["identity and workspaces"]
+        "tags": [
+          "identity and workspaces"
+        ]
       }
     },
     "/api/workspaces/{workspace_id}/projects": {
@@ -4294,7 +4797,9 @@
           }
         },
         "summary": "List Projects",
-        "tags": ["identity and workspaces"]
+        "tags": [
+          "identity and workspaces"
+        ]
       },
       "post": {
         "operationId": "create_project_api_workspaces__workspace_id__projects_post",
@@ -4374,7 +4879,9 @@
           }
         },
         "summary": "Create Project",
-        "tags": ["identity and workspaces"]
+        "tags": [
+          "identity and workspaces"
+        ]
       }
     }
   }

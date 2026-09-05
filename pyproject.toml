@@ -24,8 +24,10 @@ dependencies = [
   "psycopg[binary]>=3.2,<4",
   "pydantic>=2.13,<3",
   "pydantic-settings>=2.10,<3",
+  "prometheus-client>=0.21,<1",
   "python-multipart>=0.0.20,<1",
   "pyyaml>=6,<7",
+  "redis>=6.4,<7",
   "scipy>=1.15,<2",
   "s3fs>=2025.7,<2027",
   "sqlalchemy>=2.0.52,<2.1",
@@ -37,6 +39,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "coverage[toml]>=7.10,<8",
+  "fakeredis>=2.37,<3",
   "hypothesis>=6.138,<7",
   "mypy>=1.17,<2",
   "pytest>=8.4,<10",
@@ -57,6 +60,7 @@ markers = [
   "integration: service-level integration tests",
   "real_data: tests requiring checksum-pinned public datasets",
   "slow: generated performance or stress tests",
+  "s3_integration: tests requiring a Docker-launched MinIO container",
 ]
 
 [tool.ruff]
@@ -71,6 +75,7 @@ ignore = ["S101"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S105", "S106", "S108"]
+"tests/python/test_s3_signal_store.py" = ["S603", "S607"]
 "scripts/**" = ["S310"]
 "apps/api/**" = ["B008"]
 
@@ -82,7 +87,7 @@ mypy_path = ["packages/signal-core/src", "apps/api/src", "apps/worker/src"]
 exclude = ["alembic/versions"]
 
 [[tool.mypy.overrides]]
-module = ["mne.*", "zarr.*", "boto3.*", "botocore.*", "celery.*", "yaml.*", "scipy.*"]
+module = ["mne.*", "zarr.*", "boto3.*", "botocore.*", "celery.*", "yaml.*", "scipy.*", "s3fs.*"]
 ignore_missing_imports = true
 
 [tool.coverage.run]

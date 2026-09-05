@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "neuroworkspace.fullname" . }}-api
+  labels:
+    {{- include "neuroworkspace.labels" . | nindent 4 }}
+    {{- include "neuroworkspace.selectorLabels" (dict "component" "api" "Release" .Release "Chart" .Chart) | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "neuroworkspace.selectorLabels" (dict "component" "api" "Release" .Release "Chart" .Chart) | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.api.service.port }}
+      targetPort: http

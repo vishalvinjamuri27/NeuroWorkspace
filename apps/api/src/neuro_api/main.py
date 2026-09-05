@@ -22,12 +22,14 @@ from neuro_api.routes_session import router as session_router
 from neuro_api.routes_uploads import router as uploads_router
 from neuro_api.runtime import Runtime
 from neuro_workspace.auth import LoginStateSigner, OIDCVerifier, SessionSigner
+from neuro_workspace.cache import ViewportCache
 from neuro_workspace.config import Settings, get_settings
 from neuro_workspace.db.models import Base, Recording
 from neuro_workspace.db.session import create_engine_and_factory
 from neuro_workspace.domain import RecordingState
 from neuro_workspace.errors import NeuroError
-from neuro_workspace.signal_store import LocalZarrSignalStore
+from neuro_workspace.metrics import metrics_middleware, render_metrics
+from neuro_workspace.signal_store import create_signal_store
 from neuro_workspace.storage import create_object_store
 
 
@@ -52,11 +54,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        engine, factory = create_engine_and_factory(selected.database_url)
+        engine, factory = create_engine_and_factory(
+            selected.database_url,
+            pool_size=selected.db_pool_size,
+            max_overflow=selected.db_max_overflow,
+            pool_timeout=selected.db_pool_timeout_seconds,
+        )
         if selected.environment == "test" or selected.database_url.startswith("sqlite"):
             Base.metadata.create_all(engine)
         object_store = create_object_store(selected)
-        signal_store = LocalZarrSignalStore(selected.object_store_root / "canonical")
+        signal_store = create_signal_store(selected)
+        cache = ViewportCache(selected.redis_url)
         oidc = (
             OIDCVerifier(selected.oidc_issuer, selected.oidc_audience)
             if selected.oidc_issuer and selected.oidc_audience
@@ -68,6 +76,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             session_factory=factory,
             object_store=object_store,
             signal_store=signal_store,
+            cache=cache,
             signer=SessionSigner(
                 selected.session_secret.get_secret_value(), selected.session_ttl_seconds
             ),
@@ -124,6 +133,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         return response
 
+    @app.middleware("http")
+    async def record_metrics(request: Request, call_next: RequestResponseEndpoint) -> Response:
+        return await metrics_middleware(request, call_next)
+
     @app.exception_handler(NeuroError)
     async def handle_neuro_error(request: Request, exc: NeuroError) -> JSONResponse:
         correlation_id = request.headers.get("x-correlation-id", str(uuid.uuid4()))[:64]
@@ -159,36 +172,110 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             headers={"X-Correlation-ID": correlation_id},
         )
 
+    @app.exception_handler(Exception)
+    async def handle_unexpected_error(request: Request, exc: Exception) -> JSONResponse:
+        """Last-resort handler.
+
+        Found by actually killing MinIO under a live request: an unhandled
+        `botocore.exceptions.EndpointConnectionError` from the storage layer
+        (any dependency outage not already translated to a NeuroError can
+        reach here the same way) was reaching Starlette's default handler,
+        which returns a bare "Internal Server Error" text body -- breaking
+        this API's own documented contract that every error is the
+        {"error": {code, message, correlation_id, details}} envelope
+        (docs/API.md), and handing the client an opaque, unparseable
+        response instead of something it can branch on. The real exception
+        is still logged server-side with a diagnostic_id for support/
+        on-call to correlate, the same pattern services.jobs uses for job
+        failures -- the client just never sees internals it cannot act on.
+        """
+
+        correlation_id = request.headers.get("x-correlation-id", str(uuid.uuid4()))[:64]
+        diagnostic_id = str(uuid.uuid4())
+        structlog.get_logger(__name__).error(
+            "unhandled_exception",
+            diagnostic_id=diagnostic_id,
+            correlation_id=correlation_id,
+            path=request.url.path,
+            method=request.method,
+            failure_class=type(exc).__name__,
+        )
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": {
+                    "code": "internal_error",
+                    "message": (
+                        "Something went wrong on our end. Retry, or contact support "
+                        f"with diagnostic ID {diagnostic_id}."
+                    ),
+                    "correlation_id": correlation_id,
+                    "details": {},
+                }
+            },
+            headers={"X-Correlation-ID": correlation_id},
+        )
+
     @app.get("/health/live", include_in_schema=False)
     def live() -> dict[str, str]:
         return {"status": "live"}
 
+    @app.get("/metrics", include_in_schema=False)
+    def metrics() -> Response:
+        return render_metrics()
+
     @app.get("/health/ready", include_in_schema=False)
     def ready(request: Request) -> dict[str, str]:
+        """Traffic gate for the orchestrator.
+
+        Every dependency check here is wrapped so a downstream outage (DB,
+        or object storage when checking the demo sample) always reports a
+        clean 503 "not ready" -- found by actually killing MinIO under a
+        live request: an unhandled botocore exception from
+        signal_store.exists() was escaping this endpoint as a bare,
+        unstructured 500 instead. An orchestrator polling this route only
+        needs a reliable non-2xx signal to pull the replica from traffic;
+        it must never get an opaque crash instead of "not ready" from the
+        one endpoint whose entire job is to report exactly that.
+        """
+
         runtime: Runtime = request.app.state.runtime
-        with runtime.engine.connect() as connection:
-            connection.execute(text("SELECT 1"))
+        try:
+            with runtime.engine.connect() as connection:
+                connection.execute(text("SELECT 1"))
+        except Exception as exc:
+            raise NeuroError("database_unavailable", "The database is unreachable.", 503) from exc
         if runtime.settings.require_demo_ready:
-            with runtime.session_factory() as session:
-                demo = session.scalar(
-                    select(Recording)
-                    .where(
-                        Recording.is_demo.is_(True),
-                        Recording.state == RecordingState.READY,
-                        Recording.deleted_at.is_(None),
+            try:
+                with runtime.session_factory() as session:
+                    demo = session.scalar(
+                        select(Recording)
+                        .where(
+                            Recording.is_demo.is_(True),
+                            Recording.state == RecordingState.READY,
+                            Recording.deleted_at.is_(None),
+                        )
+                        .order_by(Recording.created_at)
                     )
-                    .order_by(Recording.created_at)
+                    demo_ready = (
+                        demo is not None
+                        and demo.active_version_id is not None
+                        and runtime.signal_store.exists(demo.active_version_id)
+                    )
+            except NeuroError:
+                raise
+            except Exception as exc:
+                raise NeuroError(
+                    "demo_check_unavailable",
+                    "The deployment sample's readiness check could not be completed.",
+                    503,
+                ) from exc
+            if not demo_ready:
+                raise NeuroError(
+                    "demo_not_ready",
+                    "The deployment sample has not passed its readiness check.",
+                    503,
                 )
-                if (
-                    demo is None
-                    or demo.active_version_id is None
-                    or not runtime.signal_store.version_path(demo.active_version_id).exists()
-                ):
-                    raise NeuroError(
-                        "demo_not_ready",
-                        "The deployment sample has not passed its readiness check.",
-                        503,
-                    )
         return {"status": "ready", "build": runtime.settings.build_version}
 
     app.include_router(session_router, prefix="/api", tags=["identity and workspaces"])

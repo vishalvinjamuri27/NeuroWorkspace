@@ -1,0 +1,31 @@
+{{- if .Values.worker.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "neuroworkspace.fullname" . }}-worker
+  labels:
+    {{- include "neuroworkspace.labels" . | nindent 4 }}
+    {{- include "neuroworkspace.selectorLabels" (dict "component" "worker" "Release" .Release "Chart" .Chart) | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "neuroworkspace.fullname" . }}-worker
+  minReplicas: {{ .Values.worker.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.worker.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.worker.autoscaling.targetCPUUtilizationPercentage }}
+  behavior:
+    scaleDown:
+      # Slower scale-down than the API: killing a worker pod mid-job is safe
+      # (the job is redelivered/reclaimed, see the Deployment's
+      # terminationGracePeriodSeconds comment) but wasteful -- give
+      # in-flight jobs more room to finish before a scale-down chooses them
+      # as the pod to remove.
+      stabilizationWindowSeconds: 600
+{{- end }}

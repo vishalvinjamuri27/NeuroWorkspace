@@ -1,0 +1,40 @@
+NeuroWorkspace ({{ .Chart.AppVersion }}) installed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+{{- if .Values.devDependencies.enabled }}
+
+Dev-bundled Postgres/Redis/MinIO are enabled -- this is NOT a production
+configuration (see values.yaml). Wait for the migration Job and pods to
+become ready:
+
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+  kubectl -n {{ .Release.Namespace }} logs job/{{ include "neuroworkspace.fullname" . }}-migrate
+
+Then port-forward to reach it without an Ingress:
+
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "neuroworkspace.fullname" . }}-web 3000:{{ .Values.web.service.port }}
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "neuroworkspace.fullname" . }}-api 8000:{{ .Values.api.service.port }}
+
+{{- else }}
+
+Check rollout status:
+
+  kubectl -n {{ .Release.Namespace }} rollout status deployment/{{ include "neuroworkspace.fullname" . }}-api
+  kubectl -n {{ .Release.Namespace }} rollout status deployment/{{ include "neuroworkspace.fullname" . }}-worker
+  kubectl -n {{ .Release.Namespace }} rollout status deployment/{{ include "neuroworkspace.fullname" . }}-web
+
+{{- if .Values.ingress.enabled }}
+
+Ingress hosts:
+  API: https://{{ .Values.ingress.api.host }}
+  Web: https://{{ .Values.ingress.web.host }}
+{{- end }}
+{{- end }}
+
+This chart has been installed and upgraded against a real local kind
+cluster (dev overlay), including horizontal scaling to 3 API replicas and
+a real `helm upgrade` that preserved existing data -- see
+docs/KUBERNETES_VALIDATION.md for exactly what was proven, the real bugs
+that install surfaced and fixed, and its limitations (no production cloud
+cluster, no sustained load test at high concurrency). It has not been
+applied against a production-grade cluster (EKS/GKE/AKS) or with an
+external Postgres/Redis/S3 (the non-dev path) -- see docs/KUBERNETES.md.

@@ -9,7 +9,7 @@ import numpy as np
 
 from neuro_workspace.domain import ChannelMetadata, EventMetadata, RecordingMetadata, SignalChunk
 from neuro_workspace.errors import ValidationError
-from neuro_workspace.signal_store import LocalZarrSignalStore, SignalManifest
+from neuro_workspace.signal_store import SignalManifest, ZarrSignalStore
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,7 +20,7 @@ class ProcessingResult:
 
 
 def _average_reference_chunks(
-    source: LocalZarrSignalStore,
+    source: ZarrSignalStore,
     version_id: str,
     sample_count: int,
     channel_indices: Sequence[int],
@@ -39,7 +39,7 @@ def _average_reference_chunks(
 
 def average_reference(
     *,
-    signal_store: LocalZarrSignalStore,
+    signal_store: ZarrSignalStore,
     input_version_id: str,
     output_version_id: str,
     reference_channel_indices: Sequence[int],

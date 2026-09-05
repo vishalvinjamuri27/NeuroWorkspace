@@ -89,7 +89,7 @@ def test_csv_upload_view_annotate_process_export_and_delete(
     assert metrics.status_code == 200
     assert metrics.json()["recordings_ready"] == 1
     assert metrics.json()["viewer_opens"] == 1
-    assert len(client.get(f"/api/projects/{project_id}/recordings").json()) == 1
+    assert len(client.get(f"/api/projects/{project_id}/recordings").json()["items"]) == 1
     assert client.get(f"/api/recordings/{recording_id}/events").json() == []
 
     channels = client.get(f"/api/recordings/{recording_id}/channels").json()
@@ -130,12 +130,13 @@ def test_csv_upload_view_annotate_process_export_and_delete(
     )
     assert conflict.status_code == 409
     assert (
-        client.get(f"/api/recordings/{recording_id}/annotations").json()[0]["id"] == annotation_id
+        client.get(f"/api/recordings/{recording_id}/annotations").json()["items"][0]["id"]
+        == annotation_id
     )
 
     bad = client.put(
         f"/api/recordings/{recording_id}/bad-channels/{channels[0]['id']}",
-        json={"state": "confirmed_bad", "reason": "Manual review"},
+        json={"state": "confirmed_bad", "reason": "Manual review", "revision": 0},
     )
     assert bad.status_code == 200
     qc = client.get(f"/api/recordings/{recording_id}/qc")
@@ -180,7 +181,7 @@ def test_csv_upload_view_annotate_process_export_and_delete(
     assert updated.status_code == 200
     removed = client.request("DELETE", f"/api/annotations/{annotation_id}", json={"revision": 2})
     assert removed.status_code == 204
-    assert client.get(f"/api/recordings/{recording_id}/annotations").json() == []
+    assert client.get(f"/api/recordings/{recording_id}/annotations").json()["items"] == []
 
     sign_in(client, "outsider@example.test")
     # Resource existence is intentionally hidden across workspace boundaries.
@@ -205,6 +206,71 @@ def test_request_boundary_and_validation(client: TestClient) -> None:
     invalid = client.post("/api/session/dev", json={"email": "x", "display_name": ""})
     assert invalid.status_code == 422
     assert invalid.json()["error"]["code"] == "invalid_request"
+
+
+def test_unhandled_exception_returns_the_structured_error_envelope(
+    signed_in_client: TestClient,
+) -> None:
+    """Found by killing MinIO under a live request: an unhandled exception
+    from the storage layer (a stand-in here, since simulating a live S3
+    outage doesn't need a real one -- any exception type reaching this
+    handler must produce the same envelope) was reaching Starlette's
+    default handler, returning a bare "Internal Server Error" text body
+    instead of this API's documented {"error": {...}} shape.
+    """
+
+    client = signed_in_client
+    _, project_id = create_workspace_project(client)
+    recording_id, _ = upload_csv(client, project_id)
+    runtime = client.app.state.runtime
+
+    def _boom(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("simulated dependency outage")
+
+    original = runtime.signal_store.query
+    runtime.signal_store.query = _boom  # type: ignore[method-assign]
+    try:
+        # raise_server_exceptions=False: TestClient's default re-raises the
+        # original exception into the test process for debugging
+        # convenience, which is specific to the test harness, not a real
+        # deployment -- a live uvicorn server already always returns the
+        # exception_handler(Exception) response. Disabling it here observes
+        # the actual HTTP response a real client would get.
+        no_raise_client = TestClient(client.app, raise_server_exceptions=False)
+        no_raise_client.cookies = client.cookies
+        response = no_raise_client.get(
+            f"/api/recordings/{recording_id}/waveform",
+            params={"start_seconds": 0, "duration_seconds": 1, "pixel_width": 80},
+        )
+    finally:
+        runtime.signal_store.query = original  # type: ignore[method-assign]
+
+    assert response.status_code == 500
+    body = response.json()
+    assert body["error"]["code"] == "internal_error"
+    assert "correlation_id" in body["error"]
+    assert "diagnostic ID" in body["error"]["message"]
+
+
+def test_readiness_reports_503_not_a_bare_crash_when_db_is_unreachable(
+    signed_in_client: TestClient,
+) -> None:
+    runtime = signed_in_client.app.state.runtime
+
+    class _BrokenEngine:
+        def connect(self) -> None:
+            raise OSError("simulated database outage")
+
+    original = runtime.engine
+    runtime.engine = _BrokenEngine()  # type: ignore[assignment]
+    try:
+        response = signed_in_client.get("/health/ready")
+    finally:
+        runtime.engine = original
+
+    assert response.status_code == 503
+    body = response.json()
+    assert body["error"]["code"] == "database_unavailable"
 
 
 def test_public_alpha_upload_boundaries_reject_unsafe_inputs(
@@ -399,7 +465,7 @@ def test_product_evidence_feedback_and_return_metrics_are_privacy_bounded(
     assert (
         client.put(
             f"/api/recordings/{recording_id}/bad-channels/{channels[0]['id']}",
-            json={"state": "confirmed_bad", "reason": "Private review reason"},
+            json={"state": "confirmed_bad", "reason": "Private review reason", "revision": 0},
         ).status_code
         == 200
     )

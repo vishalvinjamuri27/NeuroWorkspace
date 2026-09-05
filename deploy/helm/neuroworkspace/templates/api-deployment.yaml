@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "neuroworkspace.fullname" . }}-api
+  labels:
+    {{- include "neuroworkspace.labels" . | nindent 4 }}
+    {{- include "neuroworkspace.selectorLabels" (dict "component" "api" "Release" .Release "Chart" .Chart) | nindent 4 }}
+spec:
+  {{- if not .Values.api.autoscaling.enabled }}
+  replicas: {{ .Values.api.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "neuroworkspace.selectorLabels" (dict "component" "api" "Release" .Release "Chart" .Chart) | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        {{- include "neuroworkspace.labels" . | nindent 8 }}
+        {{- include "neuroworkspace.selectorLabels" (dict "component" "api" "Release" .Release "Chart" .Chart) | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "neuroworkspace.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100 # matches USER 100:101 in apps/api and apps/worker Dockerfiles
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: api
+          image: {{ include "neuroworkspace.image" (dict "Values" .Values "Chart" .Chart "imageName" "api") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.api.service.targetPort }}
+          env:
+            {{- include "neuroworkspace.commonEnv" . | nindent 12 }}
+          # /health/live and /health/ready are deliberately different checks
+          # (see apps/api/src/neuro_api/main.py): liveness never touches the
+          # database, so a slow Postgres cannot make the kubelet kill and
+          # restart every replica simultaneously. Readiness does check DB
+          # connectivity (and, with REQUIRE_DEMO_READY, the seeded sample) so
+          # a replica that cannot serve traffic is pulled from the Service
+          # endpoints without being restarted.
+          livenessProbe:
+            httpGet: { path: /health/live, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet: { path: /health/ready, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "neuroworkspace.selectorLabels" (dict "component" "api" "Release" .Release "Chart" .Chart) | nindent 14 }}

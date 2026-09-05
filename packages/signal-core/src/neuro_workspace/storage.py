@@ -4,16 +4,20 @@ from __future__ import annotations
 
 import hashlib
 import shutil
+import time
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO, Protocol
 
 import boto3
+import structlog
 from botocore.client import Config
 
 from neuro_workspace.config import Settings
 from neuro_workspace.errors import NotFoundError, ValidationError
+
+logger = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,13 +161,45 @@ class S3ObjectStore:
             if settings.s3_public_endpoint_url
             else self.client
         )
-        try:
-            self.client.head_bucket(Bucket=self.bucket)
-        except Exception:
-            if settings.environment in {"development", "test"}:
-                self.client.create_bucket(Bucket=self.bucket)
-            else:
-                raise
+        self._ensure_bucket(settings)
+
+    def _ensure_bucket(self, settings: Settings, *, attempts: int = 5) -> None:
+        # Found by actually scaling to two API replicas: a brand-new
+        # container's first connection to MinIO can transiently fail (DNS
+        # for the compose/k8s service name not yet resolvable, or the
+        # dependency's own readiness racing this container's start) even
+        # though an orchestrator's healthcheck already reports the
+        # dependency healthy. Before this fix, any failure here -- from
+        # head_bucket, or from the create_bucket fallback below, which had
+        # no error handling of its own -- crashed the process immediately
+        # with no retry, taking down that replica's startup entirely for
+        # what was often a transient race, not a real outage.
+        last_error: Exception | None = None
+        for attempt in range(1, attempts + 1):
+            try:
+                self.client.head_bucket(Bucket=self.bucket)
+                return
+            except Exception as exc:
+                last_error = exc
+                if settings.environment in {"development", "test"}:
+                    try:
+                        self.client.create_bucket(Bucket=self.bucket)
+                        return
+                    except Exception as create_exc:
+                        last_error = create_exc
+                if attempt < attempts:
+                    delay = min(2 ** (attempt - 1), 8)
+                    logger.warning(
+                        "object_store_bucket_check_failed",
+                        attempt=attempt,
+                        attempts=attempts,
+                        retry_in_seconds=delay,
+                        failure_class=type(last_error).__name__,
+                    )
+                    time.sleep(delay)
+        raise RuntimeError(
+            f"Could not verify or create S3 bucket {self.bucket!r} after {attempts} attempts"
+        ) from last_error
 
     def put_stream(self, key: str, stream: BinaryIO, max_bytes: int) -> ObjectInfo:
         # The local proxy is bounded; large clients use presigned multipart uploads.

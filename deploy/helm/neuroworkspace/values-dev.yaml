@@ -1,0 +1,62 @@
+# Overlay for a local kind/minikube cluster:
+#   helm install nw . -f values.yaml -f values-dev.yaml \
+#     --set image.registry=localhost:5001/neuroworkspace
+#
+# Bundles single-replica Postgres/Redis/MinIO (no persistence, no backups,
+# no HA -- see devDependencies in values.yaml) and creates the app Secret
+# from plaintext dev values below instead of expecting an externally
+# provisioned one. Do not reuse this file's secret values anywhere real.
+
+config:
+  environment: development
+  corsOrigins: "http://localhost:3000"
+  apiPublicUrl: "http://localhost:8000"
+  webPublicUrl: "http://localhost:3000"
+  nextPublicApiUrl: "http://localhost:8000/api"
+  devAuthEnabled: true
+  requireDemoReady: false
+  workerEager: false
+  s3Bucket: neuroworkspace
+  s3EndpointUrl: "http://neuroworkspace-minio:9000"
+  s3PublicEndpointUrl: "http://localhost:9000"
+  alphaAdminEmails: "researcher@example.test"
+
+secrets:
+  create: true
+  dev:
+    databaseUrl: "postgresql+psycopg://neuroworkspace:neuroworkspace@neuroworkspace-postgres:5432/neuroworkspace"
+    redisUrl: "redis://neuroworkspace-redis:6379/0"
+    sessionSecret: "dev-only-secret-change-me-before-any-shared-use-00000"
+    s3AccessKey: "neuroworkspace"
+    s3SecretKey: "neuroworkspace-dev-secret"
+    oidcClientSecret: ""
+
+api:
+  replicaCount: 1
+  autoscaling:
+    enabled: false
+  podDisruptionBudget:
+    enabled: false
+
+worker:
+  replicaCount: 1
+  autoscaling:
+    enabled: false
+  podDisruptionBudget:
+    enabled: false
+
+web:
+  replicaCount: 1
+  autoscaling:
+    enabled: false
+  podDisruptionBudget:
+    enabled: false
+
+ingress:
+  enabled: false
+
+networkPolicy:
+  enabled: false
+
+devDependencies:
+  enabled: true

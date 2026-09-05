@@ -1,5 +1,11 @@
 # NeuroWorkspace v0.1.0 alpha-readiness report
 
+> **Historical snapshot — architecture has since changed.** This report
+> predates the S3-backed canonical signal store ([ADR 0007](adr/0007-object-store-canonical-signal-storage.md)),
+> the real-cluster Kubernetes validation ([KUBERNETES_VALIDATION.md](KUBERNETES_VALIDATION.md)),
+> and the measured performance work ([PERFORMANCE.md](PERFORMANCE.md)). Kept
+> for history; do not treat its architecture or readiness claims as current.
+
 Date: 2026-08-18
 
 Status: **source-complete alpha candidate; not production-, clinical-, or PHI-ready.**

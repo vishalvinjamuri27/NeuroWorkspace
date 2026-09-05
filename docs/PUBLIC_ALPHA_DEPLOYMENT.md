@@ -8,19 +8,24 @@ Use a managed container platform without Kubernetes:
 browser
   ├─ Next.js web
   └─ FastAPI API ─ PostgreSQL
-                ├─ Redis broker ─ Celery worker
-                ├─ private S3-compatible source/export bucket
-                └─ shared durable POSIX volume for canonical Zarr
+                ├─ Redis broker ─ Celery worker(s) + one worker-beat
+                └─ private S3-compatible bucket (source/export/canonical Zarr)
 ```
 
-Web, API, and worker are separate images. API and worker may scale independently
-only when every replica mounts the same canonical volume at
-`OBJECT_STORE_ROOT/canonical`. The current signal store is not object-native;
-deploying API replicas with separate local disks will make recordings intermittently
-unreadable. A managed NFS/EFS-class volume is therefore required for hosted alpha.
+Web, API, and worker are separate images. With `OBJECT_STORE_BACKEND=s3` (this
+stack's default; see `neuro_workspace.signal_store.create_signal_store` and
+[ADR 0007](adr/0007-object-store-canonical-signal-storage.md)), canonical Zarr
+data is read and written directly against the same S3-compatible bucket as
+source uploads and exports — API and worker replicas hold no local state and
+require no shared network filesystem. Scale `api` and `worker` independently;
+run exactly one `worker-beat` (it is the outbox dispatcher/lease-reclaim
+scheduler, not a queue consumer, and running more than one only wastes a
+sweep cycle rather than causing incorrect behavior, since claiming is
+idempotent).
 
-Start with one web, one API, and one worker replica. Scale only after queue age,
-request latency, and storage I/O show which component is constrained.
+Start with one web, one API, one worker, and one worker-beat replica. Scale
+`api`/`worker` only after queue age, request latency, and storage I/O show
+which component is constrained.
 
 ## Required managed services
 
@@ -30,8 +35,9 @@ request latency, and storage I/O show which component is constrained.
   scientific source-of-truth role;
 - private S3-compatible storage with public access blocked, encryption, versioning
   or an equivalent recovery policy, CORS limited to the web origin, and lifecycle
-  rules for temporary uploads/exports;
-- a durable shared POSIX network filesystem mounted by every API/worker replica;
+  rules for temporary uploads/exports; this bucket is now also the canonical
+  signal store, so its durability/backup posture covers recordings, not just
+  uploads and exports;
 - an OIDC provider supporting authorization code, PKCE, discovery, JWKS, and the
   `openid email profile` scopes;
 - a secret manager and TLS-enabled custom domains for web and API.
@@ -46,7 +52,7 @@ Set these in the secret/configuration system, never in an image:
 | `DATABASE_URL` | PostgreSQL DSN using TLS |
 | `REDIS_URL` | authenticated private broker URL |
 | `OBJECT_STORE_BACKEND` | `s3` |
-| `OBJECT_STORE_ROOT` | shared mounted path, for example `/data/objects` |
+| `OBJECT_STORE_ROOT` | unused when `OBJECT_STORE_BACKEND=s3` (local-only fallback path) |
 | `S3_ENDPOINT_URL`, `S3_BUCKET` | private service endpoint and bucket |
 | `S3_ACCESS_KEY`, `S3_SECRET_KEY` | least-privilege service credentials; prefer workload identity where supported |
 | `SESSION_SECRET` | at least 32 random characters, independently rotated |
@@ -71,12 +77,12 @@ ready sample.
 1. Build the checked-in web, API, and worker Dockerfiles from one commit. Supply
    `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_REPOSITORY_URL` to the web build.
 2. Run dependency and image scanning. Record immutable image digests.
-3. Provision private networking, database, broker, bucket, and shared volume.
+3. Provision private networking, database, broker, and the S3-compatible bucket.
 4. Run `uv run alembic upgrade head` as a one-off release job using the new image.
-5. Run `uv run python scripts/seed_public_sample.py` as a one-off release job with
-   the API/worker storage mounts. It checksum-verifies and ingests the pinned CC0
-   OpenNeuro sample and is idempotent once both DB and canonical data are present.
-6. Start one worker and confirm broker connection/heartbeat.
+5. Run `uv run python scripts/seed_public_sample.py` as a one-off release job. It
+   checksum-verifies and ingests the pinned CC0 OpenNeuro sample directly into the
+   bucket and is idempotent once both DB and canonical data are present.
+6. Start one worker and one worker-beat; confirm broker connection/heartbeat.
 7. Start the API. `GET /health/live` must return live; `GET /health/ready` must
    verify the database and canonical sample.
 8. Start the web and smoke the landing → sample → waveform/QC path.
@@ -92,6 +98,7 @@ sample seed concurrently in multiple replicas.
 
 - API: `uvicorn neuro_api.main:app --host 0.0.0.0 --port 8000`
 - worker: `celery -A neuro_worker.celery_app:celery_app worker --loglevel=INFO`
+- worker-beat (run exactly one): `celery -A neuro_worker.celery_app:celery_app beat --loglevel=INFO`
 - web: `next start` from the production web image
 - migration job: `alembic upgrade head`
 - sample job: `python scripts/seed_public_sample.py`
@@ -104,14 +111,14 @@ health checks, and the same service separation for local evaluation.
 `/health/live` is process liveness. `/health/ready` is the traffic gate. In
 production it fails if the DB is unavailable or the published demo row/canonical
 version is absent. Monitor API status/latency, oldest queue age, ingestion failures
-by safe format, worker restarts/RSS, shared-volume I/O/capacity, database
-connections, object errors, and deletion backlog.
+by safe format, worker restarts/RSS, bucket request/error rates and latency,
+database connections, and deletion backlog.
 
 Back up PostgreSQL with PITR and run a restore drill. Protect the S3 bucket with
-encryption, inventory, and a recovery policy consistent with user deletion. Back
-up or snapshot canonical storage; S3 source objects can support reconstruction but
-are not an immediate substitute for the active Zarr tree. Redis can be recreated.
-Validate database/object/canonical consistency after restore before enabling writes.
+encryption, versioning/inventory, and a recovery policy consistent with user
+deletion — this now covers canonical signal data as well as source uploads and
+exports, since all three live in the same bucket. Redis can be recreated.
+Validate database/object consistency after restore before enabling writes.
 
 ## Rollback
 
@@ -126,14 +133,14 @@ gate fails, keep readiness red until its exact DB and canonical state is repaire
 
 No dollar estimate is asserted without a selected provider and measured usage.
 Early cost drivers are PostgreSQL baseline/backup retention, Redis baseline,
-network-volume provisioned throughput and capacity, S3 bytes/requests/egress,
-container CPU/RAM during MNE ingestion, retained source/canonical duplication, and
-logging/trace volume.
+S3 bytes/requests/egress (now serving canonical viewport reads as well as
+source/export traffic), container CPU/RAM during MNE ingestion, retained
+source/canonical duplication, and logging/trace volume.
 
 Scaling knobs are API replica count, worker concurrency and memory class, separate
-queues for ingest/processing/deletion, upload and workspace quotas, canonical-volume
-throughput, PostgreSQL pool size, export/upload lifecycle, and viewer point/channel
-limits. The 8-hour generated measurement in `PERFORMANCE_VALIDATION.md` is a
+queues for ingest/processing/deletion, upload and workspace quotas, bucket
+request-rate limits, PostgreSQL pool size, export/upload lifecycle, and viewer
+point/channel limits. The 8-hour generated measurement in `PERFORMANCE_VALIDATION.md` is a
 single-process reference, not a cloud capacity guarantee.
 
 ## Current validation status

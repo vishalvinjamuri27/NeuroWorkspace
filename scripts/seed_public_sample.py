@@ -24,7 +24,7 @@ from neuro_workspace.db.models import (
 from neuro_workspace.db.session import create_engine_and_factory
 from neuro_workspace.domain import AssetRole, JobKind, JobState, RecordingState, Role
 from neuro_workspace.services.jobs import execute_ingestion_job
-from neuro_workspace.signal_store import LocalZarrSignalStore
+from neuro_workspace.signal_store import create_signal_store
 from neuro_workspace.storage import create_object_store
 
 SAMPLE_ID = "openneuro_ds004362_eeglab"
@@ -46,7 +46,7 @@ def main() -> None:
     engine, factory = create_engine_and_factory(settings.database_url)
     Base.metadata.create_all(engine)
     object_store = create_object_store(settings)
-    signal_store = LocalZarrSignalStore(settings.object_store_root / "canonical")
+    signal_store = create_signal_store(settings)
     session = factory()
     try:
         demos = session.scalars(select(Recording).where(Recording.is_demo.is_(True))).all()
@@ -57,7 +57,7 @@ def main() -> None:
                 if row.state == RecordingState.READY
                 and row.source_provenance.get("dataset") == SAMPLE_ID
                 and row.active_version_id
-                and signal_store.version_path(row.active_version_id).exists()
+                and signal_store.exists(row.active_version_id)
             ),
             None,
         )

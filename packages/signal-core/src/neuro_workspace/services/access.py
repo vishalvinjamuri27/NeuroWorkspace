@@ -87,7 +87,9 @@ def recording_for_user(
     return recording
 
 
-def job_for_user(session: Session, user_id: str, job_id: str) -> Job:
+def job_for_user(
+    session: Session, user_id: str, job_id: str, capability: Capability = Capability.READ
+) -> Job:
     job = session.scalar(
         select(Job)
         .join(Membership, Membership.workspace_id == Job.workspace_id)
@@ -95,6 +97,7 @@ def job_for_user(session: Session, user_id: str, job_id: str) -> Job:
     )
     if job is None:
         raise ForbiddenError()
+    require_access(session, user_id, job.workspace_id, capability)
     return job
 
 

@@ -12,7 +12,7 @@ import zarr
 from neuro_workspace.adapters.base import RecordingAdapter
 from neuro_workspace.domain import ImportConfig, RecordingMetadata
 from neuro_workspace.qc import ChannelQC, QCThresholds, compute_qc
-from neuro_workspace.signal_store import LocalZarrSignalStore, SignalManifest
+from neuro_workspace.signal_store import SignalManifest, ZarrSignalStore
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,7 +37,7 @@ def ingest_recording(
     assets: list[Path],
     import_config: ImportConfig,
     version_id: str,
-    signal_store: LocalZarrSignalStore,
+    signal_store: ZarrSignalStore,
     source_hashes: tuple[str, ...],
     build_version: str,
     qc_window_seconds: float = 300.0,

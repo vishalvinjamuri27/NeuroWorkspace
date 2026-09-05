@@ -17,6 +17,18 @@ class Settings(BaseSettings):
 
     environment: Literal["development", "test", "staging", "production"] = "development"
     database_url: str = "sqlite:///./data/neuroworkspace.db"
+    # SQLAlchemy's un-set defaults (pool_size=5, max_overflow=10 -> 15
+    # connections per engine) were measured to start timing out under
+    # scripts/bench_job_concurrency.py at 16 concurrent DB-touching threads
+    # sharing one engine -- exactly the shape of one API replica serving
+    # concurrent requests (see docs/PERFORMANCE.md, "Connection pool
+    # behavior"). Each API replica and each worker process gets its own
+    # engine/pool, so this is a per-process ceiling, not a global one --
+    # replica_count * (db_pool_size + db_max_overflow) must stay under
+    # Postgres's own max_connections (100 by default in this stack).
+    db_pool_size: int = 10
+    db_max_overflow: int = 20
+    db_pool_timeout_seconds: int = 30
     redis_url: str = "redis://localhost:6379/0"
     object_store_backend: Literal["local", "s3"] = "local"
     object_store_root: Path = Path("data/objects")

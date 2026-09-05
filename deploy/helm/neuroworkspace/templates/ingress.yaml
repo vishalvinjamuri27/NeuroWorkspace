@@ -1,0 +1,43 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "neuroworkspace.fullname" . }}
+  labels:
+    {{- include "neuroworkspace.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- $tlsHosts := list }}
+  {{- if .Values.ingress.api.tls }}{{ $tlsHosts = append $tlsHosts .Values.ingress.api.host }}{{ end }}
+  {{- if .Values.ingress.web.tls }}{{ $tlsHosts = append $tlsHosts .Values.ingress.web.host }}{{ end }}
+  {{- if $tlsHosts }}
+  tls:
+    - hosts: {{ toYaml $tlsHosts | nindent 8 }}
+      secretName: {{ include "neuroworkspace.fullname" . }}-tls
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.api.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "neuroworkspace.fullname" . }}-api
+                port:
+                  number: {{ .Values.api.service.port }}
+    - host: {{ .Values.ingress.web.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "neuroworkspace.fullname" . }}-web
+                port:
+                  number: {{ .Values.web.service.port }}
+{{- end }}

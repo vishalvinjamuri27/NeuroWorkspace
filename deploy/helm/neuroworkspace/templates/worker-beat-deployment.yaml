@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "neuroworkspace.fullname" . }}-worker-beat
+  labels:
+    {{- include "neuroworkspace.labels" . | nindent 4 }}
+    {{- include "neuroworkspace.selectorLabels" (dict "component" "worker-beat" "Release" .Release "Chart" .Chart) | nindent 4 }}
+spec:
+  # Fixed at 1, not autoscaled and not exposed as a configurable
+  # replicaCount: see the workerBeat comment in values.yaml. A rolling
+  # update briefly runs 0 or 2 replicas, both harmless (a missed sweep tick
+  # costs at most one interval; two concurrent sweeps just race harmlessly
+  # on the same atomic UPDATEs everything else in the job system already
+  # uses), so no special maxUnavailable/maxSurge override is needed here.
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "neuroworkspace.selectorLabels" (dict "component" "worker-beat" "Release" .Release "Chart" .Chart) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "neuroworkspace.labels" . | nindent 8 }}
+        {{- include "neuroworkspace.selectorLabels" (dict "component" "worker-beat" "Release" .Release "Chart" .Chart) | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "neuroworkspace.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100 # matches USER 100:101 in apps/api and apps/worker Dockerfiles
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: worker-beat
+          image: {{ include "neuroworkspace.image" (dict "Values" .Values "Chart" .Chart "imageName" "worker") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - celery
+            - -A
+            - neuro_worker.celery_app:celery_app
+            - beat
+            - --loglevel=INFO
+            # celery beat's default schedule-state file is
+            # "celerybeat-schedule" in the process's CWD (/app) -- crashes
+            # immediately under readOnlyRootFilesystem: true (found by
+            # actually starting this pod on a real cluster: "OSError:
+            # [Errno 30] Read-only file system: 'celerybeat-schedule'").
+            # docker-compose.yml never hits this because its container
+            # filesystem is writable. This state is disposable (it only
+            # dedupes beat's own tick timing across restarts, not job
+            # data), so pointing it at the pod's own /tmp emptyDir is
+            # sufficient -- no persistent volume needed.
+            - --schedule=/tmp/celerybeat-schedule
+          env:
+            {{- include "neuroworkspace.commonEnv" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.workerBeat.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

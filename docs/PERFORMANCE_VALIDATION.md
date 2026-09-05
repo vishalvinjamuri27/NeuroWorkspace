@@ -1,5 +1,11 @@
 # Public-alpha performance validation
 
+> **Superseded.** [PERFORMANCE.md](PERFORMANCE.md) is the current,
+> comprehensive performance report (database, pagination, job concurrency,
+> viewport, cache, load test, and object storage), measured against the
+> S3-backed stack. This document is kept for history only — it measured the
+> since-replaced `LocalZarrSignalStore` in isolation.
+
 Measured 2026-08-18 on the release-preparation Mac with 24 GiB RAM, Python 3.13.5,
 local APFS storage, generated float32 EEG-like signals, and the checked-in
 `LocalZarrSignalStore`. Each case streamed deterministic chunks, built every

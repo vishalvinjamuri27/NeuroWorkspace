@@ -1,5 +1,14 @@
 # ADR 0002: Canonical signal storage
 
+> The object-storage/atomic-publication questions this ADR left open are
+> resolved in [ADR 0007](0007-object-store-canonical-signal-storage.md).
+> The "bounded channel/time windows" claim below was verified empirically,
+> not just architecturally, in [docs/PERFORMANCE.md](../PERFORMANCE.md)'s
+> "Viewport performance" section: an identical viewport request against
+> 30-second, 5-minute, and 30-minute recordings (same channel count/rate)
+> returned in the same ~7-8ms once warm — flat, not scaling with total
+> recording duration.
+
 ## Context
 
 Recordings may contain billions of values. Queries need bounded channel/time

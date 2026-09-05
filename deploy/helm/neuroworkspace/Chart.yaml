@@ -1,0 +1,20 @@
+apiVersion: v2
+name: neuroworkspace
+description: >-
+  NeuroWorkspace — stateless web/API/worker tier for the EEG review workspace.
+  Postgres, Redis, and S3-compatible object storage are expected to be
+  externally provisioned (RDS/Cloud SQL, ElastiCache/MemoryStore, S3/GCS) in
+  production; see values.yaml and docs/KUBERNETES.md for the dev-cluster
+  bundled-dependencies option.
+type: application
+version: 0.1.0
+appVersion: "0.1.0-alpha.1"
+home: https://github.com/neuroworkspace/neuroworkspace
+keywords:
+  - eeg
+  - neuroscience
+  - fastapi
+  - nextjs
+  - celery
+maintainers:
+  - name: NeuroWorkspace maintainers

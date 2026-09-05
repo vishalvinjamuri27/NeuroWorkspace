@@ -29,7 +29,7 @@ from neuro_workspace.domain import (
     Role,
     SignalChunk,
 )
-from neuro_workspace.signal_store import LocalZarrSignalStore
+from neuro_workspace.signal_store import ZarrSignalStore
 
 SAMPLE_SLUG = "neuroworkspace-public-demo"
 
@@ -61,7 +61,7 @@ def _chunks(
 
 
 def seed_sample(
-    factory: sessionmaker[Session], signal_store: LocalZarrSignalStore, build_version: str
+    factory: sessionmaker[Session], signal_store: ZarrSignalStore, build_version: str
 ) -> str:
     """Create the shared read-only synthetic demo once and return its recording ID."""
 

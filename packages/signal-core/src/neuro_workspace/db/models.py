@@ -64,7 +64,14 @@ class Workspace(TimestampMixin, Base):
 
 class Membership(TimestampMixin, Base):
     __tablename__ = "memberships"
-    __table_args__ = (UniqueConstraint("workspace_id", "user_id"),)
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "user_id"),
+        # The unique constraint above indexes (workspace_id, user_id) and
+        # serves workspace_id-first lookups; "list my workspaces"
+        # (services.access.workspace_query_for_user) filters by user_id
+        # alone and needs its own leading index.
+        Index("ix_memberships_user", "user_id"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"))
@@ -99,7 +106,10 @@ class Upload(TimestampMixin, Base):
 
 class SourceAsset(TimestampMixin, Base):
     __tablename__ = "source_assets"
-    __table_args__ = (UniqueConstraint("upload_id", "safe_name"),)
+    __table_args__ = (
+        UniqueConstraint("upload_id", "safe_name"),
+        Index("ix_source_assets_recording", "recording_id"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     upload_id: Mapped[str] = mapped_column(ForeignKey("uploads.id", ondelete="CASCADE"))
@@ -140,6 +150,9 @@ class Recording(TimestampMixin, Base):
 
 class RecordingVersion(TimestampMixin, Base):
     __tablename__ = "recording_versions"
+    __table_args__ = (
+        Index("ix_recording_versions_recording_created", "recording_id", "created_at"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     recording_id: Mapped[str] = mapped_column(ForeignKey("recordings.id", ondelete="CASCADE"))
@@ -228,6 +241,10 @@ class BadChannel(TimestampMixin, Base):
 
 class QCMetric(TimestampMixin, Base):
     __tablename__ = "qc_metrics"
+    # Every GET /recordings/{id}/qc call filters on version_id alone; without
+    # this index that query was a full table scan across every version's QC
+    # rows ever written.
+    __table_args__ = (Index("ix_qc_metrics_version", "version_id"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     version_id: Mapped[str] = mapped_column(ForeignKey("recording_versions.id", ondelete="CASCADE"))
@@ -242,6 +259,7 @@ class QCMetric(TimestampMixin, Base):
 
 class QCFlag(TimestampMixin, Base):
     __tablename__ = "qc_flags"
+    __table_args__ = (Index("ix_qc_flags_metric", "metric_id"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     metric_id: Mapped[str] = mapped_column(ForeignKey("qc_metrics.id", ondelete="CASCADE"))
@@ -258,6 +276,8 @@ class Job(TimestampMixin, Base):
     __table_args__ = (
         UniqueConstraint("workspace_id", "idempotency_key"),
         Index("ix_jobs_status_created", "status", "created_at"),
+        Index("ix_jobs_status_lease", "status", "lease_expires_at"),
+        Index("ix_jobs_dispatch", "status", "dispatched_at", "created_at"),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
@@ -280,10 +300,16 @@ class Job(TimestampMixin, Base):
         DateTime(timezone=True), nullable=True
     )
     heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # NULL means "committed but not yet confirmed delivered to the broker" -- the
+    # outbox sweep (reclaim_undispatched_jobs) redrives any row in this state past
+    # a short grace period, so a dead process between commit() and send_task()
+    # cannot strand a job forever.
+    dispatched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class ProcessingRun(TimestampMixin, Base):
     __tablename__ = "processing_runs"
+    __table_args__ = (Index("ix_processing_runs_recording_created", "recording_id", "created_at"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     recording_id: Mapped[str] = mapped_column(ForeignKey("recordings.id", ondelete="CASCADE"))
@@ -301,6 +327,9 @@ class ProcessingRun(TimestampMixin, Base):
 
 class Export(TimestampMixin, Base):
     __tablename__ = "exports"
+    __table_args__ = (
+        Index("ix_exports_recording_status_created", "recording_id", "status", "created_at"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     recording_id: Mapped[str] = mapped_column(ForeignKey("recordings.id", ondelete="CASCADE"))

@@ -21,6 +21,12 @@ RUN uv sync --frozen --no-dev --no-cache && \
     adduser --system --ingroup neuroworkspace --home /app neuroworkspace && \
     mkdir -p /data/objects/canonical && \
     chown -R neuroworkspace:neuroworkspace /app /data
-USER neuroworkspace
+# Numeric, not the name: Kubernetes' `securityContext.runAsNonRoot` check
+# inspects the image's declared USER and cannot verify a *named* user is
+# non-root (found by actually scheduling this image on a real cluster --
+# kubelet refused to start the container: "cannot verify user is
+# non-root"). `adduser --system` assigned uid 100 / gid 101 here; keep
+# this in sync if that ever changes (`docker run --rm <image> id`).
+USER 100:101
 EXPOSE 8000
 CMD ["uvicorn", "neuro_api.main:app", "--host", "0.0.0.0", "--port", "8000"]

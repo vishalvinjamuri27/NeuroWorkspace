@@ -1,5 +1,11 @@
 # User-ready public alpha report
 
+> **Historical snapshot — architecture has since changed**, notably the move
+> to S3-backed canonical signal storage ([ADR 0007](adr/0007-object-store-canonical-signal-storage.md)),
+> live Kubernetes validation ([KUBERNETES_VALIDATION.md](KUBERNETES_VALIDATION.md)),
+> and measured runtime/performance work ([RUNTIME_VALIDATION.md](RUNTIME_VALIDATION.md),
+> [PERFORMANCE.md](PERFORMANCE.md)). Kept for history.
+
 Date: 2026-08-18  
 Starting revision: `796e85b0ac949d149327ecef946092fd681499af`  
 Clean-clone tested revision: `2c35573c1f959b97c5c9d0b79a5037e6e143b54f`  

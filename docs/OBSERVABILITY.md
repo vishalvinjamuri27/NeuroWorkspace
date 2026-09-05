@@ -1,5 +1,36 @@
 # Observability and product analytics
 
+## Implementation status
+
+This document describes the target observability surface; the sections below
+predate the metrics implementation and describe more than currently exists.
+What is actually built and tested today:
+
+- **Metrics**: `neuro_workspace.metrics` exposes Prometheus counters/histograms
+  at `GET /metrics` (unauthenticated, matching standard scrape practice) --
+  `neuroworkspace_http_requests_total`/`_http_request_duration_seconds` by
+  route template and method; `neuroworkspace_jobs_started_total`,
+  `_jobs_succeeded_total`, `_jobs_failed_total` by job kind;
+  `neuroworkspace_job_leases_reclaimed_total`,
+  `_jobs_dead_lettered_total`, `_jobs_redispatched_total` for the outbox
+  dispatcher/lease-reclaim sweep (`services.jobs.run_dispatch_sweep`); and
+  `neuroworkspace_cache_requests_total` by cache name and hit/miss/error
+  outcome. Tests: `tests/python/test_metrics.py`. `docker-compose.yml`'s
+  `observability` profile (`docker compose --profile observability up`) runs
+  Prometheus scraping this endpoint using `observability/prometheus.yml`; no
+  Grafana dashboard is checked in (see the compose file comment for why).
+  Only the API process is scraped -- the Celery worker has no HTTP server to
+  scrape metrics from in this implementation; a `celery-exporter`-style
+  sidecar would be needed to cover worker-side metrics and is not yet added.
+- **Structured logging**: implemented via `structlog` with correlation IDs,
+  route, and safe error codes on the request-boundary middleware and every
+  job executor (see `services.jobs._error_report`), not the full field list
+  below.
+- **Not yet implemented**: OpenTelemetry tracing, the full metrics list
+  below, SLO/alerting configuration, and the product-analytics abstraction
+  described here are targets, not current code -- do not assume they exist
+  without checking the corresponding module.
+
 ## Operational signals
 
 All processes write JSON logs with timestamp, severity, service/build/environment,

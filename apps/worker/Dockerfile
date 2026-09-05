@@ -15,5 +15,6 @@ RUN uv sync --frozen --no-dev --no-cache && \
     adduser --system --ingroup neuroworkspace --home /app neuroworkspace && \
     mkdir -p /data/objects/canonical && \
     chown -R neuroworkspace:neuroworkspace /app /data
-USER neuroworkspace
+# Numeric, not the name -- see apps/api/Dockerfile for why.
+USER 100:101
 CMD ["celery", "-A", "neuro_worker.celery_app:celery_app", "worker", "--loglevel=INFO", "--queues=ingestion,processing,maintenance"]

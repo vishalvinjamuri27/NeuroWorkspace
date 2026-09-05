@@ -15,6 +15,8 @@ interface ProjectGroup {
   workspace: Workspace;
   project: Project;
   recordings: Recording[];
+  nextCursor: string | null;
+  loadingMore: boolean;
 }
 
 export default function WorkspacePage() {
@@ -41,11 +43,16 @@ export default function WorkspacePage() {
         workspaces.map(async (workspace) => {
           const projects = await api.projects(workspace.id);
           return Promise.all(
-            projects.map(async (project) => ({
-              workspace,
-              project,
-              recordings: await api.recordings(project.id),
-            })),
+            projects.map(async (project) => {
+              const page = await api.recordings(project.id);
+              return {
+                workspace,
+                project,
+                recordings: page.items,
+                nextCursor: page.next_cursor,
+                loadingMore: false,
+              };
+            }),
           );
         }),
       );
@@ -65,19 +72,68 @@ export default function WorkspacePage() {
     }
   }, []);
 
+  async function loadMoreRecordings(projectId: string) {
+    const group = groups.find((entry) => entry.project.id === projectId);
+    if (!group || !group.nextCursor || group.loadingMore) return;
+    setGroups((current) =>
+      current.map((entry) =>
+        entry.project.id === projectId
+          ? { ...entry, loadingMore: true }
+          : entry,
+      ),
+    );
+    try {
+      const page = await api.recordingsAfter(projectId, group.nextCursor);
+      setGroups((current) =>
+        current.map((entry) => {
+          if (entry.project.id !== projectId) return entry;
+          // De-dupe defensively: a concurrent recording created between
+          // pages could in principle straddle the cursor boundary.
+          const seen = new Set(entry.recordings.map((item) => item.id));
+          const additions = page.items.filter((item) => !seen.has(item.id));
+          return {
+            ...entry,
+            recordings: [...entry.recordings, ...additions],
+            nextCursor: page.next_cursor,
+            loadingMore: false,
+          };
+        }),
+      );
+    } catch (caught) {
+      setGroups((current) =>
+        current.map((entry) =>
+          entry.project.id === projectId
+            ? { ...entry, loadingMore: false }
+            : entry,
+        ),
+      );
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "More recordings could not be loaded.",
+      );
+    }
+  }
+
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
     return () => window.clearTimeout(timer);
   }, [load]);
 
+  const [signingIn, setSigningIn] = useState(false);
+
   async function signIn(event: FormEvent) {
     event.preventDefault();
+    if (signingIn) return;
     setError("");
+    setSigningIn(true);
     try {
       await api.signIn(email, displayName);
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Sign-in failed.");
+    } finally {
+      setSigningIn(false);
     }
   }
 
@@ -147,7 +203,9 @@ export default function WorkspacePage() {
                   />
                 </label>
               </div>
-              <button className="button primary">Continue locally</button>
+              <button className="button primary" disabled={signingIn}>
+                {signingIn ? "Signing in…" : "Continue locally"}
+              </button>
             </form>
           ) : config?.oidc_configured ? (
             <a
@@ -180,57 +238,69 @@ export default function WorkspacePage() {
 
       {!loading && signedIn && groups.length > 0 && (
         <section className="workspace-groups">
-          {groups.map(({ workspace, project, recordings }) => (
-            <article className="project-card" key={project.id}>
-              <header>
-                <div>
-                  <span>{workspace.name}</span>
-                  <h2>{project.name}</h2>
-                </div>
-                <Link
-                  className="button secondary small"
-                  href={`/upload?project_id=${project.id}`}
-                >
-                  Add recording
-                </Link>
-              </header>
-              {recordings.length ? (
-                <div className="recording-list">
-                  {recordings.map((recording) => (
-                    <Link
-                      href={`/recordings/${recording.id}`}
-                      key={recording.id}
-                    >
-                      <div>
-                        <strong>{recording.name}</strong>
-                        <span>
-                          {recording.format_id?.toUpperCase() ?? "UNKNOWN"} ·{" "}
-                          {formatDuration(
-                            Number(
-                              recording.safe_metadata.duration_seconds ?? 0,
-                            ),
-                          )}
-                        </span>
-                      </div>
-                      <span
-                        className={
-                          recording.state === "READY"
-                            ? "ready-pill"
-                            : "scope-badge"
-                        }
+          {groups.map(
+            ({ workspace, project, recordings, nextCursor, loadingMore }) => (
+              <article className="project-card" key={project.id}>
+                <header>
+                  <div>
+                    <span>{workspace.name}</span>
+                    <h2>{project.name}</h2>
+                  </div>
+                  <Link
+                    className="button secondary small"
+                    href={`/upload?project_id=${project.id}`}
+                  >
+                    Add recording
+                  </Link>
+                </header>
+                {recordings.length ? (
+                  <div className="recording-list">
+                    {recordings.map((recording) => (
+                      <Link
+                        href={`/recordings/${recording.id}`}
+                        key={recording.id}
                       >
-                        {recording.state}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <p className="empty-state">
-                  No recordings in this project yet.
-                </p>
-              )}
-            </article>
-          ))}
+                        <div>
+                          <strong>{recording.name}</strong>
+                          <span>
+                            {recording.format_id?.toUpperCase() ?? "UNKNOWN"} ·{" "}
+                            {formatDuration(
+                              Number(
+                                recording.safe_metadata.duration_seconds ?? 0,
+                              ),
+                            )}
+                          </span>
+                        </div>
+                        <span
+                          className={
+                            recording.state === "READY"
+                              ? "ready-pill"
+                              : "scope-badge"
+                          }
+                        >
+                          {recording.state}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="empty-state">
+                    No recordings in this project yet.
+                  </p>
+                )}
+                {nextCursor && (
+                  <button
+                    type="button"
+                    className="button secondary small load-more"
+                    disabled={loadingMore}
+                    onClick={() => void loadMoreRecordings(project.id)}
+                  >
+                    {loadingMore ? "Loading…" : "Load more recordings"}
+                  </button>
+                )}
+              </article>
+            ),
+          )}
         </section>
       )}
 

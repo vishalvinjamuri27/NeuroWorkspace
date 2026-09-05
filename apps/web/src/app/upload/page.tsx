@@ -54,6 +54,8 @@ export default function UploadPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     null,
   );
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
   const [sessionConfig, setSessionConfig] = useState<Awaited<
     ReturnType<typeof api.sessionConfig>
   > | null>(null);
@@ -92,14 +94,20 @@ export default function UploadPage() {
     [files],
   );
 
+  const [signingIn, setSigningIn] = useState(false);
+
   async function establishWorkspace(event: FormEvent) {
     event.preventDefault();
+    if (signingIn) return;
     setError("");
+    setSigningIn(true);
     try {
       await api.signIn(email, displayName);
       setPhase("files");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Sign-in failed.");
+    } finally {
+      setSigningIn(false);
     }
   }
 
@@ -168,11 +176,13 @@ export default function UploadPage() {
       setPhase("processing");
       setStage("Validating recording");
       const completion = await api.completeUpload(upload.id);
+      setActiveJobId(completion.job_id);
       for (let attempt = 0; attempt < 120; attempt += 1) {
         const job = await api.job(completion.job_id);
-        setStage(job.stage);
+        setStage(job.status === "CANCEL_REQUESTED" ? "Cancelling…" : job.stage);
         setProgress(70 + Math.round(job.progress * 30));
         if (job.status === "SUCCEEDED") {
+          setActiveJobId(null);
           router.push(`/recordings/${completion.recording_id}`);
           return;
         }
@@ -180,12 +190,22 @@ export default function UploadPage() {
           setErrorReference(job.diagnostic_id ?? job.id);
           throw new Error(job.error_message ?? "Ingestion failed.");
         }
+        if (job.status === "CANCELLED") {
+          setErrorReference(null);
+          throw new Error(
+            "This import was cancelled. You can start a new import from the same files.",
+          );
+        }
+        // QUEUED, RUNNING, and CANCEL_REQUESTED all keep polling --
+        // CANCEL_REQUESTED is not terminal until the worker's next
+        // cooperative checkpoint finalizes it to CANCELLED above.
         await new Promise((resolve) => window.setTimeout(resolve, 1000));
       }
       throw new Error(
         "Processing is taking longer than expected. The job remains safe to revisit.",
       );
     } catch (caught) {
+      setActiveJobId(null);
       setPhase("error");
       if (caught instanceof APIError) setErrorReference(caught.reference);
       setError(
@@ -193,6 +213,22 @@ export default function UploadPage() {
           ? caught.message
           : "Import failed.",
       );
+    }
+  }
+
+  async function cancelActiveImport() {
+    if (!activeJobId) return;
+    setCancelling(true);
+    try {
+      await api.cancelJob(activeJobId);
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "The cancellation request could not be sent.",
+      );
+    } finally {
+      setCancelling(false);
     }
   }
 
@@ -295,8 +331,8 @@ export default function UploadPage() {
                     />
                   </label>
                 </div>
-                <button className="button primary" type="submit">
-                  Continue locally
+                <button className="button primary" type="submit" disabled={signingIn}>
+                  {signingIn ? "Signing in…" : "Continue locally"}
                 </button>
               </form>
             ) : sessionConfig?.oidc_configured ? (
@@ -485,6 +521,16 @@ export default function UploadPage() {
                   Processing is durable. If you leave after upload completes,
                   return through <Link href="/workspace">your workspace</Link>.
                 </p>
+              )}
+              {phase === "processing" && activeJobId && (
+                <button
+                  type="button"
+                  className="button ghost small"
+                  disabled={cancelling}
+                  onClick={() => void cancelActiveImport()}
+                >
+                  {cancelling ? "Cancelling…" : "Cancel import"}
+                </button>
               )}
             </div>
           )}

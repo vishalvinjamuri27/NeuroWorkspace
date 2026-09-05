@@ -19,9 +19,17 @@ export default defineConfig({
     ? undefined
     : [
         {
+          // Explicitly pin every setting this ephemeral backend depends on,
+          // rather than only the ones that differ from defaults: the repo
+          // root's .env (committed for `docker compose`, pointing at
+          // Postgres/MinIO/Redis) is picked up by pydantic-settings for any
+          // process run from the repo root, and an env var set here always
+          // wins over .env -- so a setting left unset here silently falls
+          // through to the Compose stack's values instead of this test's
+          // isolated sqlite/local-filesystem sandbox.
           command:
-            `cd ../.. && DATABASE_URL=${databaseUrl} OBJECT_STORE_ROOT=${objectRoot} WORKER_EAGER=true API_PUBLIC_URL=http://localhost:8100 CORS_ORIGINS=http://localhost:3100 uv run python scripts/seed_sample.py && ` +
-            `DATABASE_URL=${databaseUrl} OBJECT_STORE_ROOT=${objectRoot} WORKER_EAGER=true API_PUBLIC_URL=http://localhost:8100 CORS_ORIGINS=http://localhost:3100 uv run uvicorn neuro_api.main:app --port 8100`,
+            `cd ../.. && DATABASE_URL=${databaseUrl} OBJECT_STORE_BACKEND=local OBJECT_STORE_ROOT=${objectRoot} WORKER_EAGER=true API_PUBLIC_URL=http://localhost:8100 CORS_ORIGINS=http://localhost:3100 uv run python scripts/seed_sample.py && ` +
+            `DATABASE_URL=${databaseUrl} OBJECT_STORE_BACKEND=local OBJECT_STORE_ROOT=${objectRoot} WORKER_EAGER=true API_PUBLIC_URL=http://localhost:8100 CORS_ORIGINS=http://localhost:3100 uv run uvicorn neuro_api.main:app --port 8100`,
           url: "http://localhost:8100/health/ready",
           reuseExistingServer: false,
           timeout: 120_000,
