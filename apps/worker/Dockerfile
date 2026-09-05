@@ -1,5 +1,5 @@
 FROM ghcr.io/astral-sh/uv:0.8.22 AS uv
-FROM python:3.13.7-slim-bookworm
+FROM python:3.14.7-slim-bookworm
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
