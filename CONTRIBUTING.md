@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for improving NeuroWorkspace. Start with `README.md`, `docs/TECH_DESIGN.md`,
+Thank you for improving NeuroWorkspace. Start with `README.md`, `docs/ARCHITECTURE.md`,
 and the ADR for the area you will change. Discuss large product or storage changes
 in an issue before implementation.
 

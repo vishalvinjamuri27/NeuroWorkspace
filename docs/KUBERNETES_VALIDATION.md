@@ -34,7 +34,7 @@ deleted rather than continuing to fight the environment. Sections 8–11 and
 
 Chart: `deploy/helm/neuroworkspace`, dev overlay (`values-dev.yaml`) —
 bundles single-replica Postgres/Redis/MinIO in-cluster rather than
-expecting externally-provisioned services (see `docs/KUBERNETES.md` for
+expecting externally-provisioned services (see `docs/DEPLOYMENT.md` for
 why that split exists).
 
 ```
@@ -134,7 +134,7 @@ the parent directory — this chart's dev overlay just hadn't matched it.
 `values-dev.yaml` hardcodes `DATABASE_URL`/`REDIS_URL`/`S3_ENDPOINT_URL`
 pointing at hosts like `neuroworkspace-postgres`. Those only resolve if
 this chart is installed with `--name neuroworkspace`. **This repo's own
-documented install command, in `docs/KUBERNETES.md`, is `helm install nw
+documented install command, in `docs/DEPLOYMENT.md`, is `helm install nw
 ...`** — a different release name, producing Services actually named
 `nw-postgres`/`nw-redis`/`nw-minio`. Following the project's own
 documented command, the migration Job's database-connectivity check
@@ -390,7 +390,7 @@ update actually observed.
 ## Graceful shutdown
 
 **Not tested this session.** Termination grace periods (`worker`'s
-`terminationGracePeriodSeconds: 120`, documented in `docs/KUBERNETES.md`
+`terminationGracePeriodSeconds: 120`, documented in `docs/DEPLOYMENT.md`
 against Celery's `task_acks_late`/`task_reject_on_worker_lost` behavior)
 were not changed and were not independently re-verified live here; this
 was previously reasoned about (not measured) when the chart was authored,

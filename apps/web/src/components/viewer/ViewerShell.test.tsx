@@ -21,6 +21,7 @@ vi.mock("../../lib/api", async () => {
       processingRuns: vi.fn(),
       waveform: vi.fn(),
       updateAnnotation: vi.fn(),
+      createProcessingRun: vi.fn(),
       track: vi.fn(),
     },
   };
@@ -224,5 +225,50 @@ describe("ViewerShell annotation pagination", () => {
     expect(
       screen.queryByRole("button", { name: /load more annotations/i }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("ViewerShell processing double-submit", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("never starts two processing runs from two clicks that race ahead of a render", async () => {
+    mockBaseLoad([]);
+    let resolveRun: (value: unknown) => void = () => undefined;
+    vi.mocked(api.createProcessingRun).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRun = resolve as (value: unknown) => void;
+        }),
+    );
+
+    render(<ViewerShell recordingId="rec-1" />);
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: "Sample recording" })).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("tab", { name: /processing/i }));
+
+    const runButton = await screen.findByRole("button", { name: /run average reference/i });
+    // Two clicks fired back to back, before the in-flight request's promise
+    // resolves and before React has necessarily re-rendered the `disabled`
+    // attribute -- the exact race a real fast double-click (or a scripted
+    // double-submit) can win against a `disabled`-attribute-only guard.
+    fireEvent.click(runButton);
+    fireEvent.click(runButton);
+
+    resolveRun({
+      id: "run-1",
+      job_id: "job-1",
+      recording_id: "rec-1",
+      operation: "average_reference",
+      status: "QUEUED",
+      input_version_id: "ver-1",
+      parameters: { channel_indices: [0, 1] },
+      created_at: "2026-01-01T00:00:00Z",
+    });
+    await waitFor(() => expect(api.createProcessingRun).toHaveBeenCalled());
+
+    expect(api.createProcessingRun).toHaveBeenCalledTimes(1);
   });
 });

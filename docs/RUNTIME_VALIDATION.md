@@ -344,7 +344,7 @@ in Phase 1/5 (`uv sync` failing once for unclear reasons, requiring a
 retry), doing so would have carried a real risk of consuming the rest of
 this session's time without a clean result, and this report would rather
 say "not tested" plainly than claim a rushed, uncertain pass. This is the
-same limitation stated in `docs/KUBERNETES.md`'s validation-status note —
+same limitation stated in `docs/DEPLOYMENT.md`'s Kubernetes section —
 it has not changed. **Do not treat the Helm chart as proven to work
 end-to-end; treat it as `helm template`-valid Kubernetes YAML that has
 never been applied.**

@@ -83,6 +83,14 @@ export function ViewerShell({ recordingId }: { recordingId: string }) {
     string | null
   >(null);
   const [processingSubmitting, setProcessingSubmitting] = useState(false);
+  // A ref guard closes the race the `disabled` attribute alone cannot: two
+  // clicks arriving before React flushes `processingSubmitting` to the DOM
+  // (a fast double-click, or a scripted double-submit) would otherwise both
+  // pass the disabled check and each mint their own idempotency key --
+  // idempotency-key dedup only helps when the key is the same, and this
+  // button generates a fresh one per call, so it cannot catch this race on
+  // its own.
+  const processingSubmitInFlight = useRef(false);
   const [processingCancelling, setProcessingCancelling] = useState(false);
   const [processingError, setProcessingError] = useState("");
   const [start, setStart] = useState(0);
@@ -611,10 +619,12 @@ export function ViewerShell({ recordingId }: { recordingId: string }) {
   }
 
   async function submitProcessing() {
+    if (processingSubmitInFlight.current) return;
     if (!selectedIndices.length) {
       setProcessingError("Select at least one visible channel to reference.");
       return;
     }
+    processingSubmitInFlight.current = true;
     setProcessingSubmitting(true);
     setProcessingError("");
     try {
@@ -633,6 +643,7 @@ export function ViewerShell({ recordingId }: { recordingId: string }) {
           : "The processing run could not be started.",
       );
     } finally {
+      processingSubmitInFlight.current = false;
       setProcessingSubmitting(false);
     }
   }
