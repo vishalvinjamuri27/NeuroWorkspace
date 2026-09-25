@@ -8,7 +8,6 @@ version = "0.1.0a1"
 description = "Web-first workspace for reproducible neural and physiological signal review"
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
-license = { text = "Apache-2.0" }
 dependencies = [
   "alembic>=1.16,<2",
   "boto3>=1.39,<2",

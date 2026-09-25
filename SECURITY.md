@@ -1,12 +1,11 @@
-# Security policy
+# Security
 
-Do not open a public issue for a suspected vulnerability or sensitive-data leak.
-Use GitHub private vulnerability reporting when enabled, or contact the security
-address published by the repository owner. Include affected version, impact, and a
-minimal reproduction without real subject data.
+Don't open a public issue for a suspected vulnerability or a data leak. Use
+GitHub's private vulnerability reporting (Security tab → Report a
+vulnerability) instead. Include the affected version, the impact, and a
+minimal reproduction — no real subject data.
 
-The alpha supports only public, synthetic, or appropriately deidentified research
-data. It is not a medical device and is not HIPAA compliant. Maintainers will
-acknowledge reports, triage severity, coordinate a fix/advisory, and credit reporters
-when desired. Supported versions will be listed after the first release.
+This is alpha software intended for public, synthetic, or properly
+deidentified research data only. It's not a medical device and isn't HIPAA
+compliant.
 

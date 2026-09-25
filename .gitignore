@@ -46,3 +46,7 @@ testdata/cache/
 *.p12
 *.pfx
 docs/ALPHA_READINESS_REPORT.generated.md
+
+# Local ChatGPT/agent project-context files -- not for the public repo
+AGENTS.md
+apps/web/AGENTS.md

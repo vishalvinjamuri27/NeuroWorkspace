@@ -232,10 +232,6 @@ product analytics.
 
 ## Contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md),
-and the relevant ADR before changing a core contract. New format claims require a
-license-reviewed, checksum-pinned public file plus independent acceptance tests.
-
-## License
-
-Apache-2.0. External datasets retain their own terms.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and the relevant ADR before changing
+a core contract. New format claims require a checksum-pinned public file
+plus an independent acceptance test.

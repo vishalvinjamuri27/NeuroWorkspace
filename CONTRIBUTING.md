@@ -1,8 +1,8 @@
 # Contributing
 
-Thank you for improving NeuroWorkspace. Start with `README.md`, `docs/ARCHITECTURE.md`,
-and the ADR for the area you will change. Discuss large product or storage changes
-in an issue before implementation.
+Start with `README.md`, `docs/ARCHITECTURE.md`, and the ADR for whatever
+area you're touching. Open an issue before a large product or storage
+change so it doesn't go to waste.
 
 1. Install locked dependencies with `make install`.
 2. Keep scientific/domain code independent of FastAPI/Celery/React.
