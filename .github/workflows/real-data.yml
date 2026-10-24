@@ -13,16 +13,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
         with:
-          version: "0.8.22"
+          version: "0.12.5"
           enable-cache: true
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13.7"
       - run: uv sync --frozen --extra dev
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .cache/neuro-workspace/testdata
           key: public-neuro-data-${{ hashFiles('testdata/manifest.yaml') }}
