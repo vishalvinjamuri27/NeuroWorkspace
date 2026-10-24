@@ -1,229 +1,113 @@
 # NeuroWorkspace
 
-A web-based workspace for reviewing, annotating, quality-checking, and
-processing EEG recordings.
+**Inspect, annotate, and process EEG recordings in your browser.**
 
-> Research software, not a medical device or diagnostic system. Do not upload
-> identifiable or regulated health information — see
-> [Limitations](#limitations).
+NeuroWorkspace is a research-focused workspace for large electrophysiology recordings. It provides a multichannel waveform viewer, annotation and quality-control tools, and versioned processing without requiring researchers to load an entire recording into the browser.
 
-![The NeuroWorkspace recording workspace showing an attributed public EEG sample, waveform controls, channel visibility, and QC review](docs/assets/neuroworkspace-recording-workspace.png)
+> **Research alpha.** Not a medical device or diagnostic tool. Do not upload identifiable or regulated health information. See [Limitations](#limitations).
 
-## What it does
+![NeuroWorkspace recording viewer showing waveforms, channel controls, and QC review](docs/assets/neuroworkspace-recording-workspace.png)
 
-NeuroWorkspace lets a researcher or BCI developer upload an EEG recording,
-scroll and zoom through it in the browser without downloading the whole
-file, mark regions of interest, flag channels that look bad, review
-automated quality heuristics, run a processing step (e.g. re-referencing)
-without losing the original recording, and export the results — all inside
-private, per-workspace storage that keeps each team's recordings and
-annotations isolated from every other team's.
+## Try it locally
 
-## Try it
+**Requires:** Docker and Docker Compose, plus an internet connection for the checksum-verified public demo recording on first startup.
 
 ```bash
-git clone https://github.com/vishalvinjamuri27/NeuroWorkspace.git && cd NeuroWorkspace
+git clone https://github.com/vishalvinjamuri27/NeuroWorkspace.git
+cd NeuroWorkspace
 cp .env.example .env
 docker compose up --build
 ```
 
-Open <http://localhost:3000> and choose **Try a sample EEG** — a checksum-pinned,
-CC0 EEGLAB recording from OpenNeuro ds004362 v1.0.0, no account or upload
-required. `docker compose down -v` tears the stack down, including volumes.
-See [Quick start](#quick-start) for the native (non-Docker) dev path.
+Open **http://localhost:3000** and select **Try a sample EEG**. The demo uses a public, CC0-licensed EEGLAB recording from [OpenNeuro ds004362 v1.0.0](https://openneuro.org/datasets/ds004362/versions/1.0.0); no account or personal data upload is required to explore it.
 
-## Features
+To stop the stack, run `docker compose down`. To reset **all local data and volumes**, run `docker compose down -v`.
 
-- **Upload EEG recordings** in several common formats directly from the
-  browser, with progress and clear failure messages if a file is malformed.
-- **Review long recordings without downloading them** — pan, zoom, and jump
-  to a timestamp; the viewer only ever fetches the visible window.
-- **Annotate** — mark a time region with a label and description, edit or
-  delete it later, and see who changed what if two people edit the same
-  annotation at once (you get a clear conflict prompt, never a silent
-  overwrite).
-- **Flag bad channels** during review, with your marks preserved across
-  reloads and page revisits.
-- **Inspect quality-control heuristics** (per-channel signal statistics and
-  flags) — presented as review aids, not diagnostic conclusions.
-- **Process a recording** (currently: average-reference) without touching
-  the original — processing produces a new, separate version of the
-  recording, so the source is always intact and the history of what was
-  done is always visible.
-- **Export** annotations, provenance, or QC results for a recording.
-- **Organize work** into workspaces and projects, with each workspace's
-  recordings, jobs, and annotations private to the people you add.
+## What you can do
 
-## Supported formats
-
-Each row below is a real adapter exercised by an acceptance test against a
-checksum-pinned public fixture — not just a claimed library capability.
-
-| Format | Public acceptance source |
-|---|---|
-| EDF / EDF+ | PhysioNet Sleep-EDF Database Expanded 1.0.0 |
-| BioSemi BDF | HBN-EEG Foundation Challenge R1 public BDF derivative |
-| BrainVision | OpenNeuro ds006547 v1.0.0 |
-| EEGLAB `.set` / optional `.fdt` | OpenNeuro ds004362 v1.0.0 |
-| MNE FIF | Official `mne-tools/mne-testing-data` fixture |
-| Configured CSV / TSV | Schema wizard and a generated acceptance fixture |
-| BIDS EEG | Exercised via the OpenNeuro BrainVision subset |
-
-Large public recordings stay outside Git and are fetched/checksum-verified on
-demand via `scripts/fetch_test_data.py`; see
-[testdata/README.md](testdata/README.md).
-
-## Quick start
-
-Requirements: Docker with Compose.
-
-```bash
-cp .env.example .env
-docker compose up --build
-```
-
-This starts Postgres, Redis, MinIO, a one-shot `bootstrap` container
-(migrations + sample seed), the API, worker, worker-beat, and the web app.
-Open <http://localhost:3000> and choose **Try a sample EEG**, or sign in with
-dev auth and upload your own file. `docker compose down -v` stops everything
-and removes volumes (full reset); `docker compose down` alone keeps data.
-
-For native development (Python 3.12-3.13, Node 20+, pnpm, uv) without Docker:
-
-```bash
-make install
-cp .env.example .env
-# in .env: use SQLite, local object storage, and WORKER_EAGER=true
-make migrate
-make seed            # or `make seed-synthetic` for a no-network fallback
-make dev             # prints the API/web/worker commands to run
-```
-
-## Developer commands
-
-```bash
-make lint            # Python + frontend linters
-make typecheck       # mypy + tsc
-make test            # fast unit/integration suite (Python + web)
-make test-e2e        # Playwright browser tests
-make real-data       # fetch + run acceptance tests against real public EEG files
-make test-s3         # opt-in: exercises S3ZarrSignalStore against a real MinIO
-make helm-lint        # client-side Helm chart lint (no cluster needed)
-make helm-template    # render the Helm chart to plain manifests
-make benchmark        # 32-channel/30-minute local-store stress benchmark
-```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full developer workflow.
+- **Explore large recordings:** pan, zoom, jump to a timestamp, and toggle channels. The viewer retrieves only the visible time window rather than downloading the entire signal.
+- **Review and annotate:** label time ranges, flag bad channels, and use transparent QC heuristics. Optimistic concurrency prevents one editor from silently overwriting another's annotation changes.
+- **Import real EEG files:** EDF/EDF+, BDF, BrainVision, EEGLAB (`.set`/`.fdt`), FIF, and configured CSV/TSV. Format acceptance tests use checksum-pinned public fixtures; see the [test data manifest](testdata/README.md).
+- **Run nondestructive processing:** average re-referencing creates a new recording version with a link to its source instead of overwriting the original.
+- **Export results:** annotations, QC summaries, and processing provenance.
+- **Organize work:** use workspaces and projects, with membership-based access controls for private recordings. The sample recording is intentionally public.
 
 ## Architecture
 
-Next.js renders the viewer; FastAPI handles authorization and metadata;
-Celery workers do the scientific parsing/processing; PostgreSQL is the
-single source of truth; Redis is a cache and message broker only; signal
-data lives in S3-compatible object storage as chunked Zarr arrays so any
-stateless replica can read/write it directly.
-
 ```mermaid
-flowchart TB
-    browser["Browser"] --> web["Next.js web"]
-    web --> api["FastAPI API replicas\n(stateless)"]
-
-    api --> pg[("PostgreSQL\nsource of truth")]
-    api <-- "cache-aside\n(waveform, QC)" --> redis[("Redis\nbroker + cache")]
-    api -- "source/export/canonical\nreads+writes" --> s3[("S3-compatible\nobject storage")]
-
-    api -- "commit Job row,\nthen best-effort send_task" --> redis
-    redis -- "at-least-once delivery" --> worker["Celery worker replicas"]
-    worker -- "claim_job() CAS,\nwrite RecordingVersion" --> pg
-    worker -- "canonical Zarr\nread/write" --> s3
-
-    beat["worker-beat\n(single instance)"] -- "reclaim expired leases,\nredrive undispatched jobs" --> pg
-    beat -- "redispatch" --> redis
-
-    classDef store fill:#2b2b40,color:#fff,stroke:#8888aa;
-    class pg,redis,s3 store;
+flowchart LR
+    B[Browser / Next.js] --> A[FastAPI]
+    A --> P[(PostgreSQL: metadata and job state)]
+    A --> S[(S3-compatible store: recordings / Zarr)]
+    A --> R[(Redis: cache and queue)]
+    R --> W[Celery workers]
+    W --> P
+    W --> S
 ```
 
-A few of the choices behind this shape, briefly:
+This is a **modular monolith**, not a collection of microservices. The API handles authorization and metadata; background workers ingest and process signals; shared Python domain modules implement format adapters, QC, storage, and job coordination.
 
-- **A modular monolith, not microservices** — one Next.js app, one FastAPI
-  app, one Celery worker sharing a domain package. Nothing about this
-  product's current scale justifies independently-deployed services, and
-  keeping "create a Recording and its ingestion Job" one transaction is
-  simpler than a distributed saga. ([ADR 0001](docs/adr/0001-monorepo-modular-monolith.md))
-- **Signal arrays live in object storage, not Postgres** — large,
-  chunk-accessed data belongs somewhere built for that access pattern, not
-  in the relational store used for metadata and authorization.
-  ([ADR 0002](docs/adr/0002-canonical-signal-storage.md),
-  [ADR 0007](docs/adr/0007-object-store-canonical-signal-storage.md))
-- **Processing never mutates a recording in place** — a transformation
-  produces a new, immutable version with a link to its parent, so the
-  original is never at risk and the history of what was done is always
-  reconstructable.
-- **Job delivery is at-least-once; job effects are effectively-once** — a
-  single conditional database update makes a duplicate task delivery a
-  no-op, which is simpler to reason about than requiring exactly-once
-  delivery from the broker itself. ([ADR 0004](docs/adr/0004-job-queue.md))
+The important tradeoffs are:
 
-For the deep mechanism-by-mechanism walkthrough (job recovery, versioning,
-concurrency control, tenant isolation) with the evidence behind each claim,
-see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). For measured performance,
-see [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+1. **Store signal arrays separately from metadata.** Chunked Zarr objects support bounded, viewport-sized reads; PostgreSQL handles relational state and access control.
+2. **Make background work recoverable.** A durable job row is committed before broker dispatch. Workers use a conditional database claim; a periodic sweep redrives undispatched jobs and reclaims expired leases.
+3. **Preserve scientific provenance.** Processing creates immutable output versions linked to the input version, and retains the original.
+4. **Prevent silent write conflicts.** Annotation edits use revision checks and return a conflict rather than overwriting concurrent changes.
 
-## Deployment
+For implementation details, see [Architecture](docs/ARCHITECTURE.md) and [Data model](docs/DATA_MODEL.md).
 
-`docker-compose.yml` is the single-machine path. A Helm chart at
-[`deploy/helm/neuroworkspace`](deploy/helm/neuroworkspace) is the
-Kubernetes path. Both are covered in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md),
-including configuration, migrations, scaling, and observability. The
-Compose stack is validated end to end in CI; the chart has been exercised on
-a local `kind` cluster (install/upgrade, 1/2/3-replica scaling), but not on a
-production-grade cluster or against externally-provisioned Postgres/Redis/S3.
+## Validation and performance
 
-## Security and privacy
+These are **development-environment measurements**, not production capacity promises:
 
-Report suspected vulnerabilities through [SECURITY.md](SECURITY.md), not a
-public issue. See [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) for trust
-boundaries and mitigations. This software is not built to handle PHI. Source
-files, raw samples, filenames, and annotation contents are excluded from
-product analytics.
+| Test | Observed result | Scope |
+|---|---|---|
+| Job claim contention | 32,000 claim attempts; zero duplicate claims | 16 worker threads contending on already-running jobs in PostgreSQL |
+| Database scale | ~8.4 million seeded rows | Deterministic synthetic dataset used for query-plan/index evaluation |
+| Fixed viewport query | ~7–8 ms warm response | Same 10-second, 2-channel window against 30-second, 5-minute, and 30-minute S3-backed recordings on a local stack |
+| Runtime workflows | Upload, ingestion, QC, annotation, processing, export, and persistence exercised | Live Docker Compose stack and browser/API test clients |
 
-## Documentation
+The test environment, exact commands, additional results, and limitations are recorded in [Performance](docs/PERFORMANCE.md). GitHub Actions also runs unit/integration tests, browser tests, and a Compose-stack validation workflow.
 
-| Document | What it covers |
+## Repository layout
+
+| Path | Purpose |
 |---|---|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Repository layout, component overview, and a deep walkthrough of job recovery, versioning, concurrency, and tenant isolation, with evidence |
-| [docs/DATA_MODEL.md](docs/DATA_MODEL.md) | Schema and entity relationships |
-| [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | Benchmark methodology, environment, and every measured number |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Docker Compose and Kubernetes, configuration, migrations, scaling, observability, backups |
-| [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) | Trust boundaries, assets, mitigations |
-| [docs/adr/](docs/adr/) | Architecture decision records |
-| [docs/API.md](docs/API.md) | API surface and conventions |
+| `apps/web` | Next.js application and Canvas waveform viewer |
+| `apps/api` | FastAPI routes and runtime initialization |
+| `apps/worker` | Celery entrypoint and scheduled recovery tasks |
+| `packages/signal-core` | Scientific adapters, domain logic, storage, processing, jobs |
+| `packages/shared-types` | Generated OpenAPI client types |
+| `tests`, `testdata` | Automated tests and pinned public fixture manifest |
+| `deploy/helm` | Kubernetes manifests for local/infrastructure deployment experiments |
+
+## Development
+
+The Docker Compose path above is the recommended first run. For local development, install Python 3.12–3.13, Node.js 22.13+, `uv`, and `pnpm` 11 (`corepack enable` provides the pinned version); see [Contributing](CONTRIBUTING.md) and the [deployment guide](docs/DEPLOYMENT.md) for environment configuration.
+
+```bash
+make install       # install locked Python and JS dependencies
+make lint          # Ruff + ESLint
+make typecheck     # mypy + TypeScript
+make test          # Python and frontend tests
+make test-e2e      # Playwright browser tests
+make real-data     # pinned public-EEG acceptance tests (downloads fixtures)
+```
+
+## Deployment status
+
+Docker Compose is the supported local evaluation path. A Helm chart has been exercised on a local `kind` Kubernetes cluster, including installation, upgrades, and multi-replica API behavior. It **has not** been validated on a production-grade cloud cluster or against independently managed Postgres, Redis, and S3 services. See [Deployment](docs/DEPLOYMENT.md).
 
 ## Limitations
 
-- **Research alpha, not a medical device.** Not for clinical use or PHI.
-- **No production-cloud deployment has been done.** Kubernetes validation is
-  against a local `kind` cluster only; no EKS/GKE/AKS run, no externally
-  provisioned Postgres/Redis/S3 path exercised end to end.
-- **The shipped API image runs a single process**, which is the measured
-  concurrency bottleneck under load — see
-  [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
-- **All performance numbers are single-machine, Docker/MinIO measurements**
-  — not a production capacity claim; see "Limits of the benchmarks" in
-  [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
-- **No backup automation is implemented** — only a documented manual
-  procedure; see "Backups" in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
-- **Frontend/product gaps remain**: no admin UI (equivalent operations are
-  API/CLI-only), no queue-depth-based autoscaling signal, no Grafana
-  dashboards shipped (Prometheus scrape only), no workspace member
-  management UI (API-only).
-- **A stale annotation/bad-channel write asks the user to reapply their
-  change manually** rather than attempting an automatic merge.
-- **No formal external security audit has been performed.**
+- **Non-clinical alpha only:** no diagnostic claims, no PHI support, and no formal external security audit. See [Security](SECURITY.md).
+- **Not production-hosted:** no production cloud deployment or automated backup/restore system has been verified.
+- **Limited processing:** average reference is the currently implemented processing operation; other transforms are not shipped.
+- **Local measurements:** load tests and data-access benchmarks were run against local Docker/MinIO, not at production user scale. The shipped single-process API has a documented concurrency bottleneck.
+- **Some operations are API-only:** for example, workspace membership administration is not yet available in the UI.
 
 ## Contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) and the relevant ADR before changing
-a core contract. New format claims require a checksum-pinned public file
-plus an independent acceptance test.
+See [CONTRIBUTING.md](CONTRIBUTING.md). New format support should include a checksum-pinned independent public fixture and an acceptance test; numerical processing changes should document units, tolerance, and provenance.
+
+Report security issues privately using the instructions in [SECURITY.md](SECURITY.md).
