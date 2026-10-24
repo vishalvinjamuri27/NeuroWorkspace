@@ -3,7 +3,7 @@
 // spins up). Run with:
 //
 //   PLAYWRIGHT_BASE_URL=http://localhost:3000 \
-//   PLAYWRIGHT_API_ORIGIN=http://localhost:8000/api \
+//   PLAYWRIGHT_API_ORIGIN=http://localhost:8000 \
 //   UNSEEN_EDF_1=/abs/path/SC4002E0-PSG.edf \
 //   UNSEEN_EDF_2=/abs/path/SC4011E0-PSG.edf \
 //   UNSEEN_EDF_3=/abs/path/SC4021E0-PSG.edf \
@@ -15,8 +15,9 @@
 import { test, expect, Page } from "@playwright/test";
 import * as fs from "node:fs";
 
-const API_ORIGIN =
-  process.env.PLAYWRIGHT_API_ORIGIN ?? "http://localhost:8000/api";
+// Same origin convention as the other specs (no /api suffix), so this file
+// runs against both the ephemeral webServer and the Compose stack.
+const API_BASE = `${process.env.PLAYWRIGHT_API_ORIGIN ?? "http://localhost:8100"}/api`;
 const RUN_ID = Date.now();
 
 function uniqueEmail(tag: string) {
@@ -25,20 +26,36 @@ function uniqueEmail(tag: string) {
 
 async function signIn(page: Page, tag: string, displayName = "Adversarial Tester") {
   const email = uniqueEmail(tag);
-  const res = await page.request.post(`${API_ORIGIN}/session/dev`, {
+  const res = await page.request.post(`${API_BASE}/session/dev`, {
     data: { email, display_name: displayName },
   });
   expect(res.status(), `dev sign-in for ${tag}`).toBe(200);
   return email;
 }
 
+// Mirrors apiClient.uploadAsset: object-store (direct) URLs take the raw
+// bytes, while the local backend's API upload route takes multipart `file`.
+async function uploadAsset(
+  page: Page,
+  asset: { upload_url: string; direct: boolean; safe_name: string },
+  body: string | Buffer,
+  mimeType = "application/octet-stream",
+) {
+  const buffer = typeof body === "string" ? Buffer.from(body) : body;
+  return asset.direct
+    ? page.request.put(asset.upload_url, { data: buffer, headers: { "Content-Type": mimeType } })
+    : page.request.put(asset.upload_url, {
+        multipart: { file: { name: asset.safe_name, mimeType, buffer } },
+      });
+}
+
 async function createWorkspaceAndProject(page: Page, wsName: string, projName: string) {
-  const ws = await page.request.post(`${API_ORIGIN}/workspaces`, {
+  const ws = await page.request.post(`${API_BASE}/workspaces`, {
     data: { name: wsName },
   });
   expect(ws.status()).toBe(201);
   const workspace = await ws.json();
-  const proj = await page.request.post(`${API_ORIGIN}/workspaces/${workspace.id}/projects`, {
+  const proj = await page.request.post(`${API_BASE}/workspaces/${workspace.id}/projects`, {
     data: { name: projName, description: "" },
   });
   expect(proj.status()).toBe(201);
@@ -79,9 +96,9 @@ test.afterAll(async () => {
 // ---------------------------------------------------------------------------
 test("phase0: environment health checks", async ({ page }) => {
   attachDiagnostics(page, "phase0");
-  const live = await page.request.get(`${API_ORIGIN}/../health/live`);
+  const live = await page.request.get(`${API_BASE}/../health/live`);
   expect(live.status()).toBe(200);
-  const ready = await page.request.get(`${API_ORIGIN}/../health/ready`);
+  const ready = await page.request.get(`${API_BASE}/../health/ready`);
   expect(ready.status()).toBe(200);
   const root = await page.goto("/");
   expect(root?.status()).toBeLessThan(400);
@@ -304,7 +321,7 @@ test("phase4-11: unseen recording #1 full journey", async ({ page }) => {
     // exact UI affordance text varies -- this is the property that
     // previously regressed ("bad channels disappear on reload").
     const badChannels = await page.request.get(
-      `${API_ORIGIN}/recordings/${recordingId}/bad-channels`,
+      `${API_BASE}/recordings/${recordingId}/bad-channels`,
     );
     expect(badChannels.status()).toBe(200);
     const badChannelsJson = await badChannels.json();
@@ -353,7 +370,7 @@ test("phase4-11: unseen recording #1 full journey", async ({ page }) => {
     await expect(page.getByText("average_reference").first()).toBeVisible();
     // The real regression check: exactly one processing run must exist,
     // never two, regardless of how the double-click landed.
-    const runsResp = await page.request.get(`${API_ORIGIN}/recordings/${recordingId}/processing-runs`);
+    const runsResp = await page.request.get(`${API_BASE}/recordings/${recordingId}/processing-runs`);
     const runs = await runsResp.json();
     expect(runs.length, "a double-click must never create two processing runs").toBe(1);
   }
@@ -395,7 +412,7 @@ test("phase12: annotation pagination Load more", async ({ page }) => {
 
   const total = 210;
   for (let i = 0; i < total; i++) {
-    const res = await page.request.post(`${API_ORIGIN}/recordings/${recordingId}/annotations`, {
+    const res = await page.request.post(`${API_BASE}/recordings/${recordingId}/annotations`, {
       data: { onset_seconds: Number((i * 0.005).toFixed(3)), duration_seconds: 0.001, label: `pg-${i}`, description: "" },
     });
     expect(res.status()).toBe(201);
@@ -436,7 +453,7 @@ test("phase7: concurrent annotation edit produces a real 409, not a silent overw
 
   const csvBody =
     "time,C3,C4\n" + Array.from({ length: 512 }, (_, i) => `${i / 256},${i},${-i}`).join("\n");
-  const uploadResp = await pageA.request.post(`${API_ORIGIN}/projects/${project.id}/uploads`, {
+  const uploadResp = await pageA.request.post(`${API_BASE}/projects/${project.id}/uploads`, {
     data: {
       recording_name: "concurrency-test",
       format_hint: "csv",
@@ -454,16 +471,16 @@ test("phase7: concurrent annotation edit produces a real 409, not a silent overw
   });
   const upload = await uploadResp.json();
   const asset = upload.assets[0];
-  await pageA.request.put(asset.upload_url, { data: csvBody, headers: { "Content-Type": "text/csv" } });
-  const completion = await (await pageA.request.post(`${API_ORIGIN}/uploads/${upload.id}/complete`)).json();
+  await uploadAsset(pageA, asset, csvBody, "text/csv");
+  const completion = await (await pageA.request.post(`${API_BASE}/uploads/${upload.id}/complete`)).json();
   const recordingId = completion.recording_id;
   for (let i = 0; i < 30; i++) {
-    const job = await (await pageA.request.get(`${API_ORIGIN}/jobs/${completion.job_id}`)).json();
+    const job = await (await pageA.request.get(`${API_BASE}/jobs/${completion.job_id}`)).json();
     if (job.status === "SUCCEEDED") break;
     await new Promise((r) => setTimeout(r, 500));
   }
 
-  const createRes = await pageA.request.post(`${API_ORIGIN}/recordings/${recordingId}/annotations`, {
+  const createRes = await pageA.request.post(`${API_BASE}/recordings/${recordingId}/annotations`, {
     data: { onset_seconds: 0.1, duration_seconds: 0.1, label: "original", description: "" },
   });
   const annotation = await createRes.json();
@@ -475,15 +492,14 @@ test("phase7: concurrent annotation edit produces a real 409, not a silent overw
 
   // Grant B membership on A's workspace so B can legitimately load the same
   // annotation (the point of this test is the CAS conflict, not auth).
-  const workspaces = await (await pageA.request.get(`${API_ORIGIN}/workspaces`)).json();
-  const workspaceId = workspaces[0].id;
-  const grant = await pageA.request.put(`${API_ORIGIN}/workspaces/${workspaceId}/memberships`, {
+  const workspaceId = project.workspace_id;
+  const grant = await pageA.request.put(`${API_BASE}/workspaces/${workspaceId}/memberships`, {
     data: { email: emailB, role: "member" },
   });
   expect(grant.status(), "granting B membership").toBe(200);
 
   // A wins the race.
-  const updateA = await pageA.request.patch(`${API_ORIGIN}/annotations/${annotation.id}`, {
+  const updateA = await pageA.request.patch(`${API_BASE}/annotations/${annotation.id}`, {
     data: {
       label: "A won",
       description: "",
@@ -495,7 +511,7 @@ test("phase7: concurrent annotation edit produces a real 409, not a silent overw
   expect(updateA.status()).toBe(200);
 
   // B's stale write (still holding the original revision) must be refused.
-  const updateB = await pageB.request.patch(`${API_ORIGIN}/annotations/${annotation.id}`, {
+  const updateB = await pageB.request.patch(`${API_BASE}/annotations/${annotation.id}`, {
     data: {
       label: "B tried to overwrite",
       description: "",
@@ -507,7 +523,7 @@ test("phase7: concurrent annotation edit produces a real 409, not a silent overw
   expect(updateB.status(), "stale write from B must be rejected with a conflict").toBe(409);
 
   const finalState = await (
-    await pageA.request.get(`${API_ORIGIN}/recordings/${recordingId}/annotations?limit=200`)
+    await pageA.request.get(`${API_BASE}/recordings/${recordingId}/annotations?limit=200`)
   ).json();
   const finalAnnotation = finalState.items.find((a: { id: string }) => a.id === annotation.id);
   expect(finalAnnotation.label, "no silent overwrite: A's write must be the final value").toBe(
@@ -539,7 +555,7 @@ test("phase13: cross-workspace access is refused, viewer role cannot mutate", as
 
   // Create a tiny CSV recording owned by A.
   const csvBody = "time,C3\n0,1\n0.01,2\n";
-  const uploadResp = await pageA.request.post(`${API_ORIGIN}/projects/${projectA.id}/uploads`, {
+  const uploadResp = await pageA.request.post(`${API_BASE}/projects/${projectA.id}/uploads`, {
     data: {
       recording_name: "tenant-isolation-test",
       format_hint: "csv",
@@ -556,58 +572,54 @@ test("phase13: cross-workspace access is refused, viewer role cannot mutate", as
     },
   });
   const upload = await uploadResp.json();
-  await pageA.request.put(upload.assets[0].upload_url, {
-    data: csvBody,
-    headers: { "Content-Type": "text/csv" },
-  });
-  const completion = await (await pageA.request.post(`${API_ORIGIN}/uploads/${upload.id}/complete`)).json();
+  await uploadAsset(pageA, upload.assets[0], csvBody, "text/csv");
+  const completion = await (await pageA.request.post(`${API_BASE}/uploads/${upload.id}/complete`)).json();
   const recordingIdA = completion.recording_id;
   const jobIdA = completion.job_id;
   for (let i = 0; i < 20; i++) {
-    const job = await (await pageA.request.get(`${API_ORIGIN}/jobs/${jobIdA}`)).json();
+    const job = await (await pageA.request.get(`${API_BASE}/jobs/${jobIdA}`)).json();
     if (job.status === "SUCCEEDED") break;
     await new Promise((r) => setTimeout(r, 500));
   }
   const annA = await (
-    await pageA.request.post(`${API_ORIGIN}/recordings/${recordingIdA}/annotations`, {
+    await pageA.request.post(`${API_BASE}/recordings/${recordingIdA}/annotations`, {
       data: { onset_seconds: 0, duration_seconds: 0.01, label: "A-only", description: "" },
     })
   ).json();
 
   // B (no membership at all in A's workspace) must be refused on every
   // A-owned resource, and get a 404 (existence not leaked), not a 403.
-  const bReadRecording = await pageB.request.get(`${API_ORIGIN}/recordings/${recordingIdA}`);
+  const bReadRecording = await pageB.request.get(`${API_BASE}/recordings/${recordingIdA}`);
   expect(bReadRecording.status()).toBe(404);
-  const bReadJob = await pageB.request.get(`${API_ORIGIN}/jobs/${jobIdA}`);
+  const bReadJob = await pageB.request.get(`${API_BASE}/jobs/${jobIdA}`);
   expect(bReadJob.status()).toBe(404);
   const bReadAnnotations = await pageB.request.get(
-    `${API_ORIGIN}/recordings/${recordingIdA}/annotations`,
+    `${API_BASE}/recordings/${recordingIdA}/annotations`,
   );
   expect(bReadAnnotations.status()).toBe(404);
   const bCreateAnnotation = await pageB.request.post(
-    `${API_ORIGIN}/recordings/${recordingIdA}/annotations`,
+    `${API_BASE}/recordings/${recordingIdA}/annotations`,
     { data: { onset_seconds: 0, duration_seconds: 0.01, label: "hostile", description: "" } },
   );
   expect(bCreateAnnotation.status()).toBe(404);
   const bWaveform = await pageB.request.get(
-    `${API_ORIGIN}/recordings/${recordingIdA}/waveform?start_seconds=0&duration_seconds=1&pixel_width=200`,
+    `${API_BASE}/recordings/${recordingIdA}/waveform?start_seconds=0&duration_seconds=1&pixel_width=200`,
   );
   expect(bWaveform.status()).toBe(404);
-  const bExport = await pageB.request.post(`${API_ORIGIN}/recordings/${recordingIdA}/exports`, {
+  const bExport = await pageB.request.post(`${API_BASE}/recordings/${recordingIdA}/exports`, {
     data: { format_id: "annotations_csv" },
   });
   expect(bExport.status()).toBe(404);
 
   // Now grant B VIEWER role on A's workspace and confirm read works but
   // write is refused with 403 (existence is legitimately known now).
-  const workspaces = await (await pageA.request.get(`${API_ORIGIN}/workspaces`)).json();
-  const workspaceIdA = workspaces[0].id;
-  const grant = await pageA.request.put(`${API_ORIGIN}/workspaces/${workspaceIdA}/memberships`, {
+  const workspaceIdA = projectA.workspace_id;
+  const grant = await pageA.request.put(`${API_BASE}/workspaces/${workspaceIdA}/memberships`, {
     data: { email: emailB, role: "viewer" },
   });
   expect(grant.status()).toBe(200);
 
-  const bReadAfterGrant = await pageB.request.get(`${API_ORIGIN}/recordings/${recordingIdA}`);
+  const bReadAfterGrant = await pageB.request.get(`${API_BASE}/recordings/${recordingIdA}`);
   expect(bReadAfterGrant.status()).toBe(200);
   // NOTE: the app's documented policy (ADR 0005, "Denials are uniform") is
   // that a capability-insufficient action returns the SAME 404 `not_found`
@@ -615,13 +627,13 @@ test("phase13: cross-workspace access is refused, viewer role cannot mutate", as
   // distinguishing "exists but you can't do this" from "doesn't exist" at
   // the wire level. Verified here as working-as-designed, not a 403.
   const bMutateAfterGrant = await pageB.request.post(
-    `${API_ORIGIN}/recordings/${recordingIdA}/annotations`,
+    `${API_BASE}/recordings/${recordingIdA}/annotations`,
     { data: { onset_seconds: 0, duration_seconds: 0.01, label: "viewer-should-fail", description: "" } },
   );
   expect(bMutateAfterGrant.status(), "viewer role must not be able to mutate").toBe(404);
   const bMutateBody = await bMutateAfterGrant.json();
   expect(bMutateBody.error.code).toBe("not_found");
-  const bDeleteAfterGrant = await pageB.request.delete(`${API_ORIGIN}/annotations/${annA.id}`, {
+  const bDeleteAfterGrant = await pageB.request.delete(`${API_BASE}/annotations/${annA.id}`, {
     data: { revision: annA.revision },
   });
   expect(bDeleteAfterGrant.status(), "viewer role must not be able to delete").toBe(404);
@@ -630,7 +642,7 @@ test("phase13: cross-workspace access is refused, viewer role cannot mutate", as
   // must be a real refusal, not just a misleading status code on a mutation
   // that silently went through anyway).
   const stillThere = await pageA.request.get(
-    `${API_ORIGIN}/recordings/${recordingIdA}/annotations?limit=200`,
+    `${API_BASE}/recordings/${recordingIdA}/annotations?limit=200`,
   );
   const stillThereBody = await stillThere.json();
   expect(
@@ -648,7 +660,7 @@ test("phase13: cross-workspace access is refused, viewer role cannot mutate", as
 test("phase14: mutation requests with a foreign Origin header are handled safely", async ({ page }) => {
   await signIn(page, "origin");
   const { project } = await createWorkspaceAndProject(page, `ws-origin-${RUN_ID}`, `proj-origin-${RUN_ID}`);
-  const res = await page.request.post(`${API_ORIGIN}/workspaces/${project.workspace_id}/projects`, {
+  const res = await page.request.post(`${API_BASE}/workspaces/${project.workspace_id}/projects`, {
     data: { name: "origin-test-project", description: "" },
     headers: { Origin: "https://evil.example.test" },
   });
@@ -670,17 +682,17 @@ test("phase15: malformed inputs return clean 4xx, never a bare 500", async ({ pa
   const { project } = await createWorkspaceAndProject(page, `ws-input-${RUN_ID}`, `proj-input-${RUN_ID}`);
 
   const nonexistentRecording = "00000000-0000-0000-0000-000000000000";
-  const r1 = await page.request.get(`${API_ORIGIN}/recordings/${nonexistentRecording}`);
+  const r1 = await page.request.get(`${API_BASE}/recordings/${nonexistentRecording}`);
   expect(r1.status()).toBe(404);
   expect((await r1.json()).error).toBeTruthy();
 
-  const r2 = await page.request.get(`${API_ORIGIN}/recordings/not-a-uuid`);
+  const r2 = await page.request.get(`${API_BASE}/recordings/not-a-uuid`);
   expect(r2.status()).toBeGreaterThanOrEqual(400);
   expect(r2.status()).toBeLessThan(500);
 
   // negative / inverted time range against a real recording
   const csvBody = "time,C3\n0,1\n0.01,2\n0.02,3\n";
-  const uploadResp = await page.request.post(`${API_ORIGIN}/projects/${project.id}/uploads`, {
+  const uploadResp = await page.request.post(`${API_BASE}/projects/${project.id}/uploads`, {
     data: {
       recording_name: "input-validation-test",
       format_hint: "csv",
@@ -697,33 +709,33 @@ test("phase15: malformed inputs return clean 4xx, never a bare 500", async ({ pa
     },
   });
   const upload = await uploadResp.json();
-  await page.request.put(upload.assets[0].upload_url, { data: csvBody, headers: { "Content-Type": "text/csv" } });
-  const completion = await (await page.request.post(`${API_ORIGIN}/uploads/${upload.id}/complete`)).json();
+  await uploadAsset(page, upload.assets[0], csvBody, "text/csv");
+  const completion = await (await page.request.post(`${API_BASE}/uploads/${upload.id}/complete`)).json();
   for (let i = 0; i < 20; i++) {
-    const job = await (await page.request.get(`${API_ORIGIN}/jobs/${completion.job_id}`)).json();
+    const job = await (await page.request.get(`${API_BASE}/jobs/${completion.job_id}`)).json();
     if (job.status === "SUCCEEDED") break;
     await new Promise((r) => setTimeout(r, 500));
   }
   const recordingId = completion.recording_id;
 
   const negativeStart = await page.request.get(
-    `${API_ORIGIN}/recordings/${recordingId}/waveform?start_seconds=-5&duration_seconds=1&pixel_width=200`,
+    `${API_BASE}/recordings/${recordingId}/waveform?start_seconds=-5&duration_seconds=1&pixel_width=200`,
   );
   expect(negativeStart.status()).toBeGreaterThanOrEqual(400);
   expect(negativeStart.status()).toBeLessThan(500);
 
   const hugeDuration = await page.request.get(
-    `${API_ORIGIN}/recordings/${recordingId}/waveform?start_seconds=0&duration_seconds=999999999&pixel_width=200`,
+    `${API_BASE}/recordings/${recordingId}/waveform?start_seconds=0&duration_seconds=999999999&pixel_width=200`,
   );
   expect(hugeDuration.status()).toBeLessThan(500);
 
-  const emptyLabel = await page.request.post(`${API_ORIGIN}/recordings/${recordingId}/annotations`, {
+  const emptyLabel = await page.request.post(`${API_BASE}/recordings/${recordingId}/annotations`, {
     data: { onset_seconds: 0, duration_seconds: 0.01, label: "", description: "" },
   });
   expect(emptyLabel.status()).toBeGreaterThanOrEqual(400);
   expect(emptyLabel.status()).toBeLessThan(500);
 
-  const outOfBounds = await page.request.post(`${API_ORIGIN}/recordings/${recordingId}/annotations`, {
+  const outOfBounds = await page.request.post(`${API_BASE}/recordings/${recordingId}/annotations`, {
     data: { onset_seconds: 99999, duration_seconds: 1, label: "oob", description: "" },
   });
   expect(outOfBounds.status()).toBeGreaterThanOrEqual(400);
@@ -741,7 +753,7 @@ test("phase16: malformed uploads fail gracefully, no path traversal", async ({ p
   const { project } = await createWorkspaceAndProject(page, `ws-mal-${RUN_ID}`, `proj-mal-${RUN_ID}`);
 
   // Zero-byte "EDF".
-  const zeroByteResp = await page.request.post(`${API_ORIGIN}/projects/${project.id}/uploads`, {
+  const zeroByteResp = await page.request.post(`${API_BASE}/projects/${project.id}/uploads`, {
     data: {
       recording_name: "zero-byte",
       format_hint: "edf",
@@ -754,13 +766,13 @@ test("phase16: malformed uploads fail gracefully, no path traversal", async ({ p
   expect([201, 422]).toContain(zeroByteResp.status());
   if (zeroByteResp.status() === 201) {
     const zeroByteUpload = await zeroByteResp.json();
-    await page.request.put(zeroByteUpload.assets[0].upload_url, { data: Buffer.alloc(0) });
-    const zeroComplete = await page.request.post(`${API_ORIGIN}/uploads/${zeroByteUpload.id}/complete`);
+    await uploadAsset(page, zeroByteUpload.assets[0], Buffer.alloc(0));
+    const zeroComplete = await page.request.post(`${API_BASE}/uploads/${zeroByteUpload.id}/complete`);
     expect(zeroComplete.status()).toBeLessThan(500);
     if (zeroComplete.status() === 200) {
       const j = await zeroComplete.json();
       for (let i = 0; i < 15; i++) {
-        const job = await (await page.request.get(`${API_ORIGIN}/jobs/${j.job_id}`)).json();
+        const job = await (await page.request.get(`${API_BASE}/jobs/${j.job_id}`)).json();
         if (job.status === "SUCCEEDED" || job.status === "FAILED") {
           expect(job.status, "a zero-byte file must fail ingestion, not silently succeed").toBe("FAILED");
           break;
@@ -771,7 +783,7 @@ test("phase16: malformed uploads fail gracefully, no path traversal", async ({ p
   }
 
   // .txt renamed to .edf (format detection must not trust the extension alone).
-  const fakeEdfResp = await page.request.post(`${API_ORIGIN}/projects/${project.id}/uploads`, {
+  const fakeEdfResp = await page.request.post(`${API_BASE}/projects/${project.id}/uploads`, {
     data: {
       recording_name: "fake-edf",
       format_hint: "edf",
@@ -781,14 +793,14 @@ test("phase16: malformed uploads fail gracefully, no path traversal", async ({ p
   expect(fakeEdfResp.status()).toBe(201);
   const fakeEdfUpload = await fakeEdfResp.json();
   const fakeBody = Buffer.from("this is not an edf!!");
-  await page.request.put(fakeEdfUpload.assets[0].upload_url, { data: fakeBody });
-  const fakeComplete = await page.request.post(`${API_ORIGIN}/uploads/${fakeEdfUpload.id}/complete`);
+  await uploadAsset(page, fakeEdfUpload.assets[0], fakeBody, "text/plain");
+  const fakeComplete = await page.request.post(`${API_BASE}/uploads/${fakeEdfUpload.id}/complete`);
   expect(fakeComplete.status()).toBeLessThan(500);
   if (fakeComplete.status() === 200) {
     const j = await fakeComplete.json();
     let terminal = null;
     for (let i = 0; i < 15; i++) {
-      const job = await (await page.request.get(`${API_ORIGIN}/jobs/${j.job_id}`)).json();
+      const job = await (await page.request.get(`${API_BASE}/jobs/${j.job_id}`)).json();
       if (job.status === "SUCCEEDED" || job.status === "FAILED") {
         terminal = job;
         break;
@@ -799,7 +811,7 @@ test("phase16: malformed uploads fail gracefully, no path traversal", async ({ p
   }
 
   // Path-traversal-looking filename must be rejected at request time.
-  const traversalResp = await page.request.post(`${API_ORIGIN}/projects/${project.id}/uploads`, {
+  const traversalResp = await page.request.post(`${API_BASE}/projects/${project.id}/uploads`, {
     data: {
       recording_name: "traversal-attempt",
       format_hint: "edf",
@@ -811,7 +823,7 @@ test("phase16: malformed uploads fail gracefully, no path traversal", async ({ p
 
   // Unusually long filename + unicode filename must not crash the request.
   const longName = "u".repeat(250) + ".edf";
-  const longNameResp = await page.request.post(`${API_ORIGIN}/projects/${project.id}/uploads`, {
+  const longNameResp = await page.request.post(`${API_BASE}/projects/${project.id}/uploads`, {
     data: {
       recording_name: "long-filename",
       format_hint: "edf",
@@ -820,7 +832,7 @@ test("phase16: malformed uploads fail gracefully, no path traversal", async ({ p
   });
   expect(longNameResp.status()).toBeLessThan(500);
 
-  const unicodeNameResp = await page.request.post(`${API_ORIGIN}/projects/${project.id}/uploads`, {
+  const unicodeNameResp = await page.request.post(`${API_BASE}/projects/${project.id}/uploads`, {
     data: {
       recording_name: "unicode-filename",
       format_hint: "edf",
@@ -830,7 +842,7 @@ test("phase16: malformed uploads fail gracefully, no path traversal", async ({ p
   expect(unicodeNameResp.status()).toBeLessThan(500);
 
   // Unsupported extension.
-  const badExtResp = await page.request.post(`${API_ORIGIN}/projects/${project.id}/uploads`, {
+  const badExtResp = await page.request.post(`${API_BASE}/projects/${project.id}/uploads`, {
     data: {
       recording_name: "bad-extension",
       format_hint: "edf",
@@ -849,9 +861,9 @@ test("phase17: XSS payloads in project names render inert", async ({ page }) => 
   attachDiagnostics(page, "xss");
   await signIn(page, "xss");
   const payload = '<img src=x onerror=window.__xss_fired=true>';
-  const ws = await page.request.post(`${API_ORIGIN}/workspaces`, { data: { name: `ws-xss-${RUN_ID}` } });
+  const ws = await page.request.post(`${API_BASE}/workspaces`, { data: { name: `ws-xss-${RUN_ID}` } });
   const workspace = await ws.json();
-  const proj = await page.request.post(`${API_ORIGIN}/workspaces/${workspace.id}/projects`, {
+  const proj = await page.request.post(`${API_BASE}/workspaces/${workspace.id}/projects`, {
     data: { name: payload, description: '"><svg onload=window.__xss_fired=true>' },
   });
   expect(proj.status()).toBe(201);
@@ -903,7 +915,7 @@ for (const [envVar, label] of [
 
     // Record actual ingested characteristics for the report -- this is the
     // point of using three different real files rather than one.
-    const recording = await (await page.request.get(`${API_ORIGIN}/recordings/${recordingId}`)).json();
+    const recording = await (await page.request.get(`${API_BASE}/recordings/${recordingId}`)).json();
     console.log(
       `[${label}] duration=${recording.safe_metadata?.duration_seconds}s ` +
         `channels=${recording.safe_metadata?.channel_count} ` +

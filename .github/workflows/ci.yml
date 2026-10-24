@@ -134,12 +134,7 @@ jobs:
           test "$(docker compose exec -T postgres psql -U neuroworkspace -d neuroworkspace -Atc \
             "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';")" -ge 20
       - name: Real public EEG, object storage, and authorization
-        run: |
-          uv run python scripts/validate_compose_stack.py prepare --state "$COMPOSE_STATE"
-          version_id=$(jq -r .active_version_id "$COMPOSE_STATE")
-          docker compose exec -T api python -c \
-            'from pathlib import Path; import sys; raise SystemExit(not Path("/data/objects/canonical", sys.argv[1], "manifest.json").is_file())' \
-            "$version_id"
+        run: uv run python scripts/validate_compose_stack.py prepare --state "$COMPOSE_STATE"
       - name: Complete restart persistence
         run: |
           docker compose down
@@ -169,11 +164,6 @@ jobs:
           uv run python scripts/validate_compose_stack.py cleanup --state "$COMPOSE_STATE"
           recording_id=$(jq -r .disposable.recording_id "$COMPOSE_STATE")
           upload_id=$(jq -r .disposable.upload_id "$COMPOSE_STATE")
-          for version_id in $(jq -r '.disposable | .active_version_id, .derived_version_id' "$COMPOSE_STATE"); do
-            docker compose exec -T api python -c \
-              'from pathlib import Path; import sys; raise SystemExit(Path("/data/objects/canonical", sys.argv[1]).exists())' \
-              "$version_id"
-          done
           test "$(docker compose exec -T postgres psql -U neuroworkspace -d neuroworkspace -Atc \
             "SELECT state FROM recordings WHERE id = '$recording_id';")" = DELETED
           for table in source_assets recording_versions annotations bad_channels exports processing_runs; do

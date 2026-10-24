@@ -228,6 +228,11 @@ def _head_object(key: str) -> dict[str, Any]:
     return dict(_s3_client().head_object(Bucket=_bucket(), Key=key))
 
 
+def _canonical_manifest_key(version_id: str) -> str:
+    # Mirrors S3ZarrSignalStore's default "canonical" prefix within the bucket.
+    return f"canonical/{version_id}/manifest.json"
+
+
 def _object_is_absent(key: str) -> bool:
     try:
         _head_object(key)
@@ -309,12 +314,18 @@ def _create_annotation(client: httpx.Client, recording_id: str) -> dict[str, Any
     )
 
 
-def _mark_bad_channel(client: httpx.Client, recording_id: str, channel_id: str) -> dict[str, Any]:
+def _mark_bad_channel(
+    client: httpx.Client, recording_id: str, channel_id: str, revision: int = 0
+) -> dict[str, Any]:
     return dict(
         _json(
             client.put(
                 f"/api/recordings/{recording_id}/bad-channels/{channel_id}",
-                json={"state": "confirmed_bad", "reason": "Compose validation marker"},
+                json={
+                    "state": "confirmed_bad",
+                    "reason": "Compose validation marker",
+                    "revision": revision,
+                },
             ),
             200,
             "mark bad channel",
@@ -418,6 +429,7 @@ def prepare(state_path: Path) -> None:
         bad_channel = _mark_bad_channel(client, recording["id"], channels[0]["id"])
         export, export_content, export_key = _create_export(client, recording["id"])
         _head_object(uploaded["source_key"])
+        _head_object(_canonical_manifest_key(recording["active_version_id"]))
         cookie_name = _env_file_values()["SESSION_COOKIE_NAME"]
         cookie = client.cookies.get(cookie_name)
         if not cookie:
@@ -478,7 +490,7 @@ def verify_persistence(state_path: Path) -> None:
                 client.get(f"/api/projects/{state['project_id']}/recordings"),
                 200,
                 "list recordings after restart",
-            )
+            )["items"]
         )
         if state["recording_id"] not in {item["id"] for item in recordings}:
             raise RuntimeError("recording did not persist")
@@ -490,12 +502,15 @@ def verify_persistence(state_path: Path) -> None:
                 client.get(f"/api/recordings/{state['recording_id']}/annotations"),
                 200,
                 "list annotations after restart",
-            )
+            )["items"]
         )
         if state["annotation_id"] not in {item["id"] for item in annotations}:
             raise RuntimeError("annotation did not persist")
         bad_channel = _mark_bad_channel(
-            client, str(state["recording_id"]), str(state["bad_channel_channel_id"])
+            client,
+            str(state["recording_id"]),
+            str(state["bad_channel_channel_id"]),
+            int(state["bad_channel_revision"]),
         )
         if int(bad_channel["revision"]) != int(state["bad_channel_revision"]) + 1:
             raise RuntimeError("bad-channel review row did not persist")
@@ -663,6 +678,9 @@ def failure_and_deletion(state_path: Path) -> None:
             raise RuntimeError("raw source object remained after deletion")
         if not _object_is_absent(str(disposable["export_key"])):
             raise RuntimeError("export object remained after deletion")
+        for key in ("active_version_id", "derived_version_id"):
+            if not _object_is_absent(_canonical_manifest_key(str(disposable[key]))):
+                raise RuntimeError(f"canonical {key} remained after deletion")
         state["failed"] = {
             **failed,
             "status": failed_job["status"],
