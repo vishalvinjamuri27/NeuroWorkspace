@@ -46,8 +46,8 @@ import { check, sleep } from "k6";
 import { Counter, Trend } from "k6/metrics";
 
 // API_BASE may be a single URL, or a comma-separated list of URLs -- the
-// latter is how docs/KUBERNETES_VALIDATION.md's scaling test drives
-// multiple replicas directly: `kubectl port-forward` to a Service picks a
+// latter is how the Kubernetes scaling test drives multiple replicas
+// directly: `kubectl port-forward` to a Service picks a
 // single backend pod for the whole forwarded connection (it does not
 // round-robin the way the in-cluster Service/kube-proxy path does), so
 // hitting only one forwarded URL cannot show a throughput difference as

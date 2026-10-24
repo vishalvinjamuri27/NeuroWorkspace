@@ -31,7 +31,7 @@ settings = get_settings()
 # very first real ingestion run against a live worker pool. Building these
 # per-process, after fork, via worker_process_init is the standard fix
 # (paralleling SQLAlchemy's own documented advice to dispose() an Engine
-# created before a fork). See docs/RUNTIME_VALIDATION.md.
+# created before a fork).
 engine = None
 factory = None
 object_store: ObjectStore | None = None

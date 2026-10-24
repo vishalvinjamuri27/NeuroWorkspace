@@ -38,8 +38,8 @@ app.kubernetes.io/component: {{ .component }}
 {{/*
 Non-secret env vars every Python workload (api, worker, worker-beat) needs.
 Shared here so the three deployments cannot drift out of sync on a config
-key -- see docs/KUBERNETES.md for why api/worker/worker-beat all read the
-exact same Settings model (packages/signal-core/src/neuro_workspace/config.py).
+key -- api/worker/worker-beat all read the exact same Settings model
+(packages/signal-core/src/neuro_workspace/config.py).
 */}}
 {{- define "neuroworkspace.commonEnv" -}}
 - name: ENVIRONMENT

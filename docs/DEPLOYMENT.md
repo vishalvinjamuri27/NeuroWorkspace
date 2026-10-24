@@ -1,8 +1,10 @@
 # Deployment
 
 Two deployment paths exist: `docker-compose.yml` for a single machine, and
-a Helm chart for Kubernetes. Both are covered here; see
-[VALIDATION.md](VALIDATION.md) for exactly what's been verified about each.
+a Helm chart for Kubernetes. Both are covered here. The Compose path is
+exercised end to end by the `compose` job in CI (clean build, restart
+persistence, worker loss and queue survival, deletion cleanup, and the
+Playwright suite against the running stack).
 
 ## Local Docker Compose
 
@@ -56,8 +58,7 @@ and is a test/native-dev-only shortcut. Each worker process builds its own
 database engine and object-storage client *after* Celery's prefork forks
 child processes (`worker_process_init` in `celery_app.py`) — building them
 before the fork is not fork-safe with the S3 client library used here, a
-real bug found and fixed during validation (see
-[VALIDATION.md](VALIDATION.md)).
+real bug found and fixed during validation.
 
 ## Kubernetes
 
@@ -65,7 +66,8 @@ The Helm chart at [`deploy/helm/neuroworkspace`](../deploy/helm/neuroworkspace)
 is the Kubernetes deployment path. **It has been validated on a local
 `kind` cluster; it has not been operated on a production-grade cluster
 (EKS/GKE/AKS) or against externally-provisioned Postgres/Redis/S3 end to
-end.** See [VALIDATION.md](VALIDATION.md) for exactly what was run.
+end.** Validation covered install, upgrade, and API/worker scaling at
+1/2/3 replicas.
 
 ```text
 Ingress (nginx/cert-manager)
@@ -122,13 +124,13 @@ no queue-depth-based autoscaling (the worker HPA scales on CPU, which is
 the baseline every cluster supports without an extra dependency; a KEDA
 `ScaledObject` reading queue length would be more accurate but needs KEDA
 installed); no Grafana dashboard (only Prometheus scraping is wired up —
-see [OBSERVABILITY.md](OBSERVABILITY.md)); no worker metrics scraping (only
+see [Observability](#observability)); no worker metrics scraping (only
 the API process exposes `/metrics`).
 
 ## Scaling API and worker replicas
 
 Both are stateless and horizontally replicable (verified live at 1/2/3
-replicas — see [VALIDATION.md](VALIDATION.md)). The one connection-budget
+replicas on Compose and on `kind`). The one connection-budget
 constraint to know before scaling up: each API process holds up to 30
 Postgres connections (`pool_size=10 + max_overflow=20`); against Postgres's
 default `max_connections=100`, that's roughly 3 replicas before headroom
@@ -137,6 +139,18 @@ a larger `max_connections`, a smaller per-replica pool, or a connection
 pooler (e.g. PgBouncer) in front of Postgres — none of which this chart
 implements, since no benchmark reached that many replicas. See
 [PERFORMANCE.md](PERFORMANCE.md) for the measurement this is based on.
+
+## Observability
+
+The API exposes Prometheus metrics at `GET /metrics` (`neuro_workspace.metrics`):
+request counts and latency by route template, job started/succeeded/failed
+counts by kind, lease reclaims, dead-letters and redispatches from the outbox
+sweep, and cache hit/miss/error counts. `docker compose --profile
+observability up` adds a Prometheus instance scraping it
+(`observability/prometheus.yml`). Logs are structured JSON via `structlog`
+with correlation IDs and safe error codes; signal values, filenames,
+annotation text, and signed URLs are never logged. Not implemented: worker
+metrics (Celery has no HTTP endpoint here), tracing, dashboards, and alerting.
 
 ## Backups
 
