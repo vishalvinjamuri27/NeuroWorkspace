@@ -155,8 +155,7 @@ revision = :revision`; one succeeds (revision becomes 2), the other's `WHERE`
 clause matches zero rows and the API returns `409
 annotation_revision_conflict` with the current server state — never a silent
 overwrite. `BadChannel` review uses the identical pattern. This was verified
-against two real concurrent HTTP clients, not just unit-tested — see
-"Concurrent annotation update" in [VALIDATION.md](VALIDATION.md).
+against two real concurrent HTTP clients, not just unit-tested.
 Code: `services/access.py`'s update paths; tests:
 `tests/python/test_annotation_concurrency.py`.
 
@@ -174,8 +173,7 @@ guarantee, and the documentation and tests are deliberately worded that way.
 Proven under genuine concurrent Postgres connections, not just interleaved
 calls on one connection — 32,000 claim attempts across 16 real worker
 threads, zero double-claims (see [PERFORMANCE.md](PERFORMANCE.md)) — and
-live, by sending a real duplicate task message (see
-[VALIDATION.md](VALIDATION.md)).
+live, by sending a real duplicate task message.
 
 **Worker death**: the job's row carries a `lease_expires_at`, refreshed
 periodically while the worker is alive (`LeaseHeartbeat`). If the worker is
@@ -193,8 +191,7 @@ attempt to notify Celery. If that notification fails (Redis down, network
 partition), the request still succeeds — the `Job` row is the durable record
 of work, not the broker message. `worker-beat`'s outbox sweep
 (`find_undispatched_jobs`) picks up any `Job` left undispatched once the
-broker is reachable again. See [VALIDATION.md](VALIDATION.md) for a live
-reproduction of this exact scenario.
+broker is reachable again.
 
 ## Cursor pagination
 
@@ -218,8 +215,7 @@ belongs to a workspace the caller isn't a member of returns the same `404` as
 a recording that doesn't exist at all, so existence can't be probed (see
 [ADR 0005](adr/0005-authentication-authorization.md) — this is a deliberate
 choice, "denials are uniform," not an oversight: a member with insufficient
-role capability gets the same `404` as a non-member, confirmed in
-[VALIDATION.md](VALIDATION.md)). This was verified live across two
+role capability gets the same `404` as a non-member). This was verified live across two
 independent API replicas with two different signed-in users.
 
 ## API conventions
@@ -271,7 +267,7 @@ whichever replica handles a request). This was proven, not just designed:
 two independent API containers were brought up with no shared state, and a
 session created against one was accepted by the other with identical
 behavior, and the same statelessness was re-verified at 1/2/3 replicas on a
-real Kubernetes cluster (see [VALIDATION.md](VALIDATION.md)). The one
+local `kind` Kubernetes cluster. The one
 deliberately non-scaled component is `worker-beat` (the outbox sweep) — it
 runs as a single instance because its job (finding undispatched/lease-expired
 rows) is naturally idempotent under overlap, so a second instance briefly
@@ -293,7 +289,7 @@ running during a rolling deploy just races harmlessly on the same atomic
   that many replicas. See [PERFORMANCE.md](PERFORMANCE.md).
 - **A production-grade cluster** (EKS/GKE/AKS) with externally-provisioned
   Postgres/Redis/S3 has not been exercised — only a local `kind` cluster
-  has. See [VALIDATION.md](VALIDATION.md).
+  has.
 - **Queue-depth-based worker autoscaling** would be a more accurate scaling
   signal than CPU for a job worker, but needs a cluster-level dependency
   (e.g. KEDA) not currently validated here.

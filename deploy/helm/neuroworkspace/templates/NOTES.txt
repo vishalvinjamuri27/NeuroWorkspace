@@ -32,9 +32,7 @@ Ingress hosts:
 
 This chart has been installed and upgraded against a real local kind
 cluster (dev overlay), including horizontal scaling to 3 API replicas and
-a real `helm upgrade` that preserved existing data -- see
-docs/KUBERNETES_VALIDATION.md for exactly what was proven, the real bugs
-that install surfaced and fixed, and its limitations (no production cloud
-cluster, no sustained load test at high concurrency). It has not been
+a real `helm upgrade` that preserved existing data. It has not been
 applied against a production-grade cluster (EKS/GKE/AKS) or with an
-external Postgres/Redis/S3 (the non-dev path) -- see docs/KUBERNETES.md.
+external Postgres/Redis/S3 (the non-dev path), and has had no sustained
+load test at high concurrency -- see docs/DEPLOYMENT.md.

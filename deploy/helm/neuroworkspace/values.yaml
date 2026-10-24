@@ -177,6 +177,6 @@ networkPolicy:
 # Bundled dev-only dependencies (single-replica, no persistence beyond an
 # emptyDir, no HA, no backups) so this chart can stand up something usable
 # on a local kind/minikube cluster. NEVER enable in production -- see the
-# Chart.yaml description and docs/KUBERNETES.md.
+# Chart.yaml description and docs/DEPLOYMENT.md.
 devDependencies:
   enabled: false

@@ -2,7 +2,7 @@
 NeuroWorkspace stack exactly as a client would -- dev sign-in, presigned
 direct-to-MinIO upload, polling job status, annotations, processing,
 export, and reopening. Not a unit test double: every step is a real HTTP
-request against a live docker-compose stack. See docs/RUNTIME_VALIDATION.md.
+request against a live docker-compose stack.
 """
 
 from __future__ import annotations
@@ -15,8 +15,8 @@ from pathlib import Path
 import httpx
 
 # Overridable so this same script can drive either the Docker Compose stack
-# (default, ports 8000/3000) or a port-forwarded Kubernetes Service (see
-# docs/KUBERNETES_VALIDATION.md) without duplicating all 24 steps.
+# (default, ports 8000/3000) or a port-forwarded Kubernetes Service
+# without duplicating all 24 steps.
 API_BASE_URL = os.environ.get("E2E_API_BASE", "http://localhost:8000")
 WEB_BASE_URL = os.environ.get("E2E_WEB_BASE", "http://localhost:3000")
 BASE = f"{API_BASE_URL}/api"

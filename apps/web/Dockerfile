@@ -19,8 +19,7 @@ COPY packages/shared-types packages/shared-types
 # otherwise-identical cache. Installing after the full source tree is
 # already in place (so no COPY ever lands on top of an existing
 # node_modules) avoids it entirely -- confirmed by rebuilding from a pruned
-# cache multiple times. See docs/RUNTIME_VALIDATION.md for the full
-# reproduction. The tradeoff is a source-only change now invalidates the
+# cache multiple times. The tradeoff is a source-only change now invalidates the
 # install layer too; a `--mount=type=cache` for the pnpm store keeps that
 # cheap regardless.
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store,sharing=locked \

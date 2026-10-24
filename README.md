@@ -22,7 +22,7 @@ annotations isolated from every other team's.
 ## Try it
 
 ```bash
-git clone <this-repo> && cd neuro-workspace
+git clone https://github.com/vishalvinjamuri27/NeuroWorkspace.git && cd NeuroWorkspace
 cp .env.example .env
 docker compose up --build
 ```
@@ -71,7 +71,7 @@ checksum-pinned public fixture — not just a claimed library capability.
 
 Large public recordings stay outside Git and are fetched/checksum-verified on
 demand via `scripts/fetch_test_data.py`; see
-[docs/REAL_DATA_TEST_PLAN.md](docs/REAL_DATA_TEST_PLAN.md).
+[testdata/README.md](testdata/README.md).
 
 ## Quick start
 
@@ -175,19 +175,16 @@ see [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 `docker-compose.yml` is the single-machine path. A Helm chart at
 [`deploy/helm/neuroworkspace`](deploy/helm/neuroworkspace) is the
 Kubernetes path. Both are covered in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md),
-including configuration, migrations, and scaling; see
-[docs/VALIDATION.md](docs/VALIDATION.md) for exactly what's been verified
-about each (short version: a real local `kind` cluster, install/upgrade,
-and 1/2/3-replica scaling have been exercised; a production-grade cluster
-and the externally-provisioned Postgres/Redis/S3 path have not).
+including configuration, migrations, scaling, and observability. The
+Compose stack is validated end to end in CI; the chart has been exercised on
+a local `kind` cluster (install/upgrade, 1/2/3-replica scaling), but not on a
+production-grade cluster or against externally-provisioned Postgres/Redis/S3.
 
 ## Security and privacy
 
 Report suspected vulnerabilities through [SECURITY.md](SECURITY.md), not a
 public issue. See [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) for trust
-boundaries and mitigations, and
-[docs/HIPAA_GAP_ANALYSIS.md](docs/HIPAA_GAP_ANALYSIS.md) for what would be
-required before this software could handle PHI (it does not today). Source
+boundaries and mitigations. This software is not built to handle PHI. Source
 files, raw samples, filenames, and annotation contents are excluded from
 product analytics.
 
@@ -198,19 +195,14 @@ product analytics.
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Repository layout, component overview, and a deep walkthrough of job recovery, versioning, concurrency, and tenant isolation, with evidence |
 | [docs/DATA_MODEL.md](docs/DATA_MODEL.md) | Schema and entity relationships |
 | [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | Benchmark methodology, environment, and every measured number |
-| [docs/VALIDATION.md](docs/VALIDATION.md) | Index of what's been verified against a running system, and what hasn't |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Docker Compose and Kubernetes, configuration, migrations, scaling, backups |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Docker Compose and Kubernetes, configuration, migrations, scaling, observability, backups |
 | [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) | Trust boundaries, assets, mitigations |
-| [docs/HIPAA_GAP_ANALYSIS.md](docs/HIPAA_GAP_ANALYSIS.md) | What's required before handling PHI (not supported today) |
-| [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md) | Metrics, logging, and the optional Prometheus profile |
 | [docs/adr/](docs/adr/) | Architecture decision records |
 | [docs/API.md](docs/API.md) | API surface and conventions |
-| [docs/archive/](docs/archive/) | Superseded planning/milestone documents, kept for history |
 
 ## Limitations
 
-- **Research alpha, not a medical device.** Not for clinical use or PHI —
-  see [docs/HIPAA_GAP_ANALYSIS.md](docs/HIPAA_GAP_ANALYSIS.md).
+- **Research alpha, not a medical device.** Not for clinical use or PHI.
 - **No production-cloud deployment has been done.** Kubernetes validation is
   against a local `kind` cluster only; no EKS/GKE/AKS run, no externally
   provisioned Postgres/Redis/S3 path exercised end to end.
