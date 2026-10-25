@@ -50,6 +50,31 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
+  api-types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          version: "0.12.5"
+          enable-cache: true
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13.7"
+      - uses: pnpm/action-setup@v6
+        with:
+          version: "11.19.0"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24.8.0"
+          cache: pnpm
+      - run: uv sync --frozen --extra dev
+      - run: pnpm install --frozen-lockfile
+      - name: Fail if checked-in API types are stale
+        run: |
+          make openapi
+          git diff --exit-code -- packages/shared-types
+
   e2e:
     runs-on: ubuntu-latest
     steps:
