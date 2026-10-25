@@ -129,8 +129,22 @@ the API process exposes `/metrics`).
 
 ## Scaling API and worker replicas
 
-Both are stateless and horizontally replicable (verified live at 1/2/3
-replicas on Compose and on `kind`). The one connection-budget
+Both are stateless and horizontally replicable. What has actually been run:
+
+- **Kubernetes (`kind`)**: the API Deployment at 1, 2, and 3 replicas
+  (`kubectl scale deployment/nw-api --replicas=N`), with the 24-step
+  end-to-end script passing at each count
+  (`E2E_API_BASE=<port-forwarded API> uv run python scripts/e2e_smoke.py`).
+  `kubectl port-forward` pins one pod, so cross-replica traffic was checked
+  from an in-cluster `curl` pod against the Service.
+- **Compose**: `docker compose up -d --scale worker=2` (workers publish no
+  ports). The base file maps the API to a fixed host port, so `--scale api=2`
+  does not work as-is; the second API replica was a separate `docker run` of
+  the same image on the Compose network with a different host port. A session
+  issued by one API was accepted by the other, and writes were visible
+  through both.
+
+The one connection-budget
 constraint to know before scaling up: each API process holds up to 30
 Postgres connections (`pool_size=10 + max_overflow=20`); against Postgres's
 default `max_connections=100`, that's roughly 3 replicas before headroom

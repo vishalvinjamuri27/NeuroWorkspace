@@ -1,5 +1,7 @@
 # NeuroWorkspace
 
+[![CI](https://github.com/vishalvinjamuri27/NeuroWorkspace/actions/workflows/ci.yml/badge.svg)](https://github.com/vishalvinjamuri27/NeuroWorkspace/actions/workflows/ci.yml)
+
 **Inspect, annotate, and process EEG recordings in your browser.**
 
 NeuroWorkspace is a research-focused workspace for large electrophysiology recordings. It provides a multichannel waveform viewer, annotation and quality-control tools, and versioned processing without requiring researchers to load an entire recording into the browser.
@@ -50,7 +52,7 @@ This is a **modular monolith**, not a collection of microservices. The API handl
 The important tradeoffs are:
 
 1. **Store signal arrays separately from metadata.** Chunked Zarr objects support bounded, viewport-sized reads; PostgreSQL handles relational state and access control.
-2. **Make background work recoverable.** A durable job row is committed before broker dispatch. Workers use a conditional database claim; a periodic sweep redrives undispatched jobs and reclaims expired leases.
+2. **Make background work recoverable.** A durable job row is committed before broker dispatch. Workers use a conditional database claim; a periodic sweep redrives jobs that were never dispatched or whose broker message was lost, and reclaims expired leases.
 3. **Preserve scientific provenance.** Processing creates immutable output versions linked to the input version, and retains the original.
 4. **Prevent silent write conflicts.** Annotation edits use revision checks and return a conflict rather than overwriting concurrent changes.
 
@@ -58,7 +60,7 @@ For implementation details, see [Architecture](docs/ARCHITECTURE.md) and [Data m
 
 ## Validation and performance
 
-These are **development-environment measurements**, not production capacity promises:
+These were measured on a single development machine (local Docker and MinIO), not under real user traffic, so read them as evidence of design properties rather than production capacity:
 
 | Test | Observed result | Scope |
 |---|---|---|
@@ -67,7 +69,9 @@ These are **development-environment measurements**, not production capacity prom
 | Fixed viewport query | ~7–8 ms warm response | Same 10-second, 2-channel window against 30-second, 5-minute, and 30-minute S3-backed recordings on a local stack |
 | Runtime workflows | Upload, ingestion, QC, annotation, processing, export, and persistence exercised | Live Docker Compose stack and browser/API test clients |
 
-The test environment, exact commands, additional results, and limitations are recorded in [Performance](docs/PERFORMANCE.md). GitHub Actions also runs unit/integration tests, browser tests, and a Compose-stack validation workflow.
+The test environment, exact commands, additional results, and limitations are recorded in [Performance](docs/PERFORMANCE.md).
+
+Every push runs the [CI workflow](https://github.com/vishalvinjamuri27/NeuroWorkspace/actions/workflows/ci.yml): unit and integration tests (including cross-connection race tests against PostgreSQL), Playwright browser tests, a check that the generated API types match the code, dependency audits, and a full Docker Compose run covering restart persistence, worker loss, and deletion cleanup.
 
 ## Repository layout
 

@@ -74,9 +74,10 @@ to be a bottleneck under load (see docs/PERFORMANCE.md).
 ## Consequences
 
 API and worker replicas are now stateless with respect to canonical signal
-data — any replica can serve any version, satisfying real horizontal
-scaling for both `api` and `worker` in `docker-compose.yml` via
-`--scale`. `LocalZarrSignalStore` remains for single-machine native
+data — any replica can serve any version, so both `api` and `worker` can
+scale horizontally (in `docker-compose.yml`, `--scale worker=N` works
+directly; extra `api` replicas need distinct host ports or a proxy).
+`LocalZarrSignalStore` remains for single-machine native
 development (`make dev`), where a network filesystem would be pure
 overhead. The local and S3 code paths are exercised by the same shared
 `ZarrSignalStore.write/validate/query` logic (`tests/python/test_signal_store.py`),

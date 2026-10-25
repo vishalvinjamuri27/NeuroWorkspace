@@ -24,8 +24,8 @@
 // annotations, a project with thousands of recordings) are deliberately
 // NOT exercised here: a k6 VU is a real signed-in user and workspace
 // authorization correctly refuses it access to another tenant's data
-// (verified as a 404, matching API.md's "missing and unauthorized private
-// resources return the same response"). That query-plan/index behavior at
+// (verified as a 404, matching the uniform-denial rule in docs/API.md's
+// Authorization section). That query-plan/index behavior at
 // scale is covered directly against the database by scripts/bench_queries.py
 // and scripts/bench_pagination.py instead; this script measures real
 // end-to-end HTTP-level behavior under concurrency for the queries a

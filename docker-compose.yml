@@ -50,9 +50,9 @@ services:
   # stack's default), neuro_workspace.signal_store.create_signal_store
   # returns an S3ZarrSignalStore that reads/writes canonical Zarr arrays
   # directly against MinIO over HTTP. Every replica of every service talks to
-  # the same bucket independently, so this stack scales api/worker
-  # horizontally with `docker compose up --scale api=N --scale worker=M`
-  # without provisioning a network filesystem.
+  # the same bucket independently, so api/worker scale horizontally without
+  # a network filesystem. `--scale worker=N` works as-is; the api's fixed
+  # host port means more api replicas need distinct ports or a proxy.
   bootstrap:
     build:
       context: .
