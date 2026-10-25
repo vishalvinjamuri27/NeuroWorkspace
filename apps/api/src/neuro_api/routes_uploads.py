@@ -9,7 +9,7 @@ from pathlib import Path
 import structlog
 from celery import Celery
 from fastapi import APIRouter, BackgroundTasks, Depends, UploadFile
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from neuro_api.runtime import Runtime, current_user, get_db, get_runtime
@@ -218,6 +218,23 @@ def upload_local_content(
     session.commit()
 
 
+def _claim_upload_for_completion(session: Session, upload_id: str) -> bool:
+    """Atomically move an upload from UPLOADING to COMPLETED, or refuse.
+
+    The status check has to be the UPDATE's own WHERE clause: two concurrent
+    completion requests can both read UPLOADING, and each would otherwise
+    create its own Recording and ingestion Job.
+    """
+
+    result = session.execute(
+        update(Upload)
+        .where(Upload.id == upload_id, Upload.status == "UPLOADING")
+        .values(status="COMPLETED")
+        .execution_options(synchronize_session=False)
+    )
+    return bool(result.rowcount == 1)  # type: ignore[attr-defined]
+
+
 @router.post("/uploads/{upload_id}/complete", response_model=UploadCompleteResponse)
 def complete_upload(
     upload_id: str,
@@ -252,6 +269,10 @@ def complete_upload(
         raise ValidationError(
             "upload_incomplete", "Upload every file before completing the upload."
         )
+    if not _claim_upload_for_completion(session, upload.id):
+        session.rollback()
+        raise ConflictError("upload_not_open", "This upload has already been completed or aborted.")
+    session.refresh(upload)
     config = dict(upload.csv_config or {})
     recording_name = str(config.pop("_recording_name", "Recording"))
     upload.csv_config = config or None
@@ -273,7 +294,7 @@ def complete_upload(
         subject_type="recording",
         subject_id=recording.id,
         # Deterministic per-recording: a recording is only ever completed once
-        # (guarded by the upload.status != "UPLOADING" check above), so the
+        # (guarded by _claim_upload_for_completion above), so the
         # unique (workspace_id, idempotency_key) constraint is a real,
         # database-enforced guarantee against a duplicate ingestion job for
         # the same recording rather than decoration.
@@ -281,7 +302,6 @@ def complete_upload(
         stage="Inspecting",
     )
     session.add(job)
-    upload.status = "COMPLETED"
     track_product_event(
         session,
         "upload_completed",
