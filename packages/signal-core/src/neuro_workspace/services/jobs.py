@@ -91,6 +91,11 @@ def _error_report(exc: BaseException) -> tuple[str, str, str, list[dict[str, str
 
 DEFAULT_LEASE_SECONDS = 15 * 60
 UNDISPATCHED_GRACE_SECONDS = 30
+# A QUEUED job whose message was handed to the broker this long ago without
+# any worker claiming it is assumed lost (e.g. Redis restarted without its
+# queue). Resending is safe because claim_job refuses duplicate deliveries;
+# the interval only bounds how often a merely backlogged job gets a duplicate.
+STALE_DISPATCH_SECONDS = 10 * 60
 
 
 def claim_job(
@@ -286,6 +291,44 @@ def find_undispatched_jobs(
     )
 
 
+def find_stale_dispatched_jobs(
+    session: Session, *, stale_seconds: int = STALE_DISPATCH_SECONDS, limit: int = 100
+) -> list[Job]:
+    """Jobs handed to the broker that no worker has claimed in `stale_seconds`.
+
+    The outbox only records that a message was sent, not that it survived:
+    if the broker loses its queue after dispatch, the job would otherwise sit
+    in QUEUED with dispatched_at set and never be selected again.
+    """
+
+    threshold = datetime.now(UTC) - timedelta(seconds=stale_seconds)
+    return list(
+        session.scalars(
+            select(Job)
+            .where(
+                Job.status == JobState.QUEUED,
+                Job.dispatched_at.is_not(None),
+                Job.dispatched_at < threshold,
+            )
+            .order_by(Job.dispatched_at)
+            .limit(limit)
+        )
+    )
+
+
+def mark_redispatched(session: Session, job_id: str) -> None:
+    """Restart the stale-dispatch clock for a job that was just resent."""
+
+    session.execute(
+        update(Job)
+        .where(Job.id == job_id, Job.status == JobState.QUEUED)
+        .values(dispatched_at=datetime.now(UTC))
+        .execution_options(synchronize_session=False)
+    )
+    session.commit()
+    session.expire_all()
+
+
 def run_dispatch_sweep(
     *,
     factory: sessionmaker[Session],
@@ -303,14 +346,17 @@ def run_dispatch_sweep(
     try:
         reclaimed_ids, dead_letter_ids = reclaim_expired_leases(session)
         pending = find_undispatched_jobs(session)
+        stale = find_stale_dispatched_jobs(session)
         redispatched = 0
-        for job in pending:
+        for job, mark in [(job, mark_dispatched) for job in pending] + [
+            (job, mark_redispatched) for job in stale
+        ]:
             try:
                 redispatch(job.id, job.kind.value)
             except Exception:
                 logger.warning("job_redispatch_failed", job_id=job.id, kind=job.kind.value)
                 continue
-            mark_dispatched(session, job.id)
+            mark(session, job.id)
             redispatched += 1
             JOBS_REDISPATCHED_TOTAL.inc()
         return {
@@ -318,6 +364,7 @@ def run_dispatch_sweep(
             "dead_lettered": len(dead_letter_ids),
             "redispatched": redispatched,
             "pending_considered": len(pending),
+            "stale_considered": len(stale),
         }
     finally:
         session.close()
