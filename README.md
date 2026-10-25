@@ -103,15 +103,7 @@ make real-data     # pinned public-EEG acceptance tests (downloads fixtures)
 Docker Compose is the supported local evaluation path. A Helm chart has been exercised on a local `kind` Kubernetes cluster, including installation, upgrades, and multi-replica API behavior. It **has not** been validated on a production-grade cloud cluster or against independently managed Postgres, Redis, and S3 services. See [Deployment](docs/DEPLOYMENT.md).
 
 ## Limitations
-
-- **Non-clinical alpha only:** no diagnostic claims, no PHI support, and no formal external security audit. See [Security](SECURITY.md).
 - **Not production-hosted:** no production cloud deployment or automated backup/restore system has been verified.
 - **Limited processing:** average reference is the currently implemented processing operation; other transforms are not shipped.
 - **Local measurements:** load tests and data-access benchmarks were run against local Docker/MinIO, not at production user scale. The shipped single-process API has a documented concurrency bottleneck.
 - **Some operations are API-only:** for example, workspace membership administration is not yet available in the UI.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). New format support should include a checksum-pinned independent public fixture and an acceptance test; numerical processing changes should document units, tolerance, and provenance.
-
-Report security issues privately using the instructions in [SECURITY.md](SECURITY.md).
