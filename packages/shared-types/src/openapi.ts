@@ -414,6 +414,11 @@ export interface paths {
          *     resolution) -- a strong ETag and a cache-aside Redis lookup are both
          *     safe here with no invalidation logic needed, only a TTL. `If-None-Match`
          *     short-circuits before touching Redis or the signal store at all.
+         *
+         *     The URL names a recording, whose active version changes when processing
+         *     completes. Only a request pinned to a version (`version_id`) may be cached
+         *     as immutable; an unpinned one must revalidate, and a pin to a version that
+         *     is no longer active is refused rather than served stale.
          */
         get: operations["get_waveform_api_recordings__recording_id__waveform_get"];
         put?: never;
@@ -2147,6 +2152,7 @@ export interface operations {
                 duration_seconds?: number;
                 channel_index?: number[];
                 pixel_width?: number;
+                version_id?: string | null;
             };
             header?: {
                 authorization?: string | null;

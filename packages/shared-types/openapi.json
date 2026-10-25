@@ -3663,7 +3663,7 @@
     },
     "/api/recordings/{recording_id}/waveform": {
       "get": {
-        "description": "Return one bounded viewport window.\n\nA RecordingVersion is immutable once it exists (ADR 0002/0007), so this\nresponse is fully determined by (version_id, channels, window,\nresolution) -- a strong ETag and a cache-aside Redis lookup are both\nsafe here with no invalidation logic needed, only a TTL. `If-None-Match`\nshort-circuits before touching Redis or the signal store at all.",
+        "description": "Return one bounded viewport window.\n\nA RecordingVersion is immutable once it exists (ADR 0002/0007), so this\nresponse is fully determined by (version_id, channels, window,\nresolution) -- a strong ETag and a cache-aside Redis lookup are both\nsafe here with no invalidation logic needed, only a TTL. `If-None-Match`\nshort-circuits before touching Redis or the signal store at all.\n\nThe URL names a recording, whose active version changes when processing\ncompletes. Only a request pinned to a version (`version_id`) may be cached\nas immutable; an unpinned one must revalidate, and a pin to a version that\nis no longer active is refused rather than served stale.",
         "operationId": "get_waveform_api_recordings__recording_id__waveform_get",
         "parameters": [
           {
@@ -3719,6 +3719,22 @@
               "minimum": 64,
               "title": "Pixel Width",
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Version Id"
             }
           },
           {

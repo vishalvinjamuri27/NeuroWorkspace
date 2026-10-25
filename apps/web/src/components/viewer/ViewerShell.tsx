@@ -268,6 +268,7 @@ export function ViewerShell({ recordingId }: { recordingId: string }) {
       api
         .waveform(
           recording.id,
+          recording.active_version_id,
           start,
           duration,
           selectedIndices,
@@ -296,10 +297,24 @@ export function ViewerShell({ recordingId }: { recordingId: string }) {
       // Best-effort neighbor prefetch: not on the critical path, so it
       // keeps using the shared de-dupe cache and is never aborted.
       void api
-        .waveform(recording.id, previous, duration, selectedIndices, viewerWidth)
+        .waveform(
+          recording.id,
+          recording.active_version_id,
+          previous,
+          duration,
+          selectedIndices,
+          viewerWidth,
+        )
         .catch(() => undefined);
       void api
-        .waveform(recording.id, next, duration, selectedIndices, viewerWidth)
+        .waveform(
+          recording.id,
+          recording.active_version_id,
+          next,
+          duration,
+          selectedIndices,
+          viewerWidth,
+        )
         .catch(() => undefined);
     }, 0);
     return () => {
@@ -316,6 +331,7 @@ export function ViewerShell({ recordingId }: { recordingId: string }) {
     api
       .waveform(
         recording.id,
+        recording.active_version_id,
         start,
         duration,
         selectedIndices,

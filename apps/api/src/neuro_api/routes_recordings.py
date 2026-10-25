@@ -269,6 +269,7 @@ def get_waveform(
     duration_seconds: float = Query(10, gt=0),
     channel_index: list[int] = Query(default=[]),
     pixel_width: int = Query(1200, ge=64),
+    version_id: str | None = Query(None),
     identity: Identity | None = Depends(optional_identity),
     session: Session = Depends(get_db),
     runtime: Runtime = Depends(get_runtime),
@@ -280,6 +281,11 @@ def get_waveform(
     resolution) -- a strong ETag and a cache-aside Redis lookup are both
     safe here with no invalidation logic needed, only a TTL. `If-None-Match`
     short-circuits before touching Redis or the signal store at all.
+
+    The URL names a recording, whose active version changes when processing
+    completes. Only a request pinned to a version (`version_id`) may be cached
+    as immutable; an unpinned one must revalidate, and a pin to a version that
+    is no longer active is refused rather than served stale.
     """
 
     recording = _public_or_authorized_recording(session, recording_id, identity)
@@ -293,7 +299,13 @@ def get_waveform(
             "viewport_too_wide",
             f"pixel_width may not exceed {runtime.settings.max_waveform_pixels}.",
         )
-    version_id = _active_version(recording)
+    active_version_id = _active_version(recording)
+    if version_id is not None and version_id != active_version_id:
+        raise ConflictError(
+            "version_changed", "This recording has a newer version. Reload to view it."
+        )
+    pinned = version_id is not None
+    version_id = active_version_id
     if not channel_index:
         channel_count = int(recording.safe_metadata.get("channel_count", 0))
         channel_index = list(range(min(channel_count, 32)))
@@ -302,7 +314,10 @@ def get_waveform(
         version_id, channel_index, start_seconds, duration_seconds, pixel_width
     )
     etag = f'"{cache_key.rsplit(":", 1)[-1]}"'
-    cache_headers = {"ETag": etag, "Cache-Control": "private, max-age=3600, immutable"}
+    cache_headers = {
+        "ETag": etag,
+        "Cache-Control": "private, max-age=3600, immutable" if pinned else "private, no-cache",
+    }
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=304, headers=cache_headers)
 
