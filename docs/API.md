@@ -1,87 +1,83 @@
-# API contract overview
+# API semantics
 
-FastAPI's checked-in OpenAPI document is the executable specification. This page
-records compatibility and resource semantics; examples omit authentication headers.
+The endpoint reference is generated, not written by hand:
 
-## Resources
+- [`packages/shared-types/openapi.json`](../packages/shared-types/openapi.json)
+  is the checked-in OpenAPI document, and `src/openapi.ts` beside it holds the
+  TypeScript types the frontend uses. `make openapi` regenerates both, and CI
+  fails if they drift from the running code.
+- A running API serves the same document interactively at
+  <http://localhost:8000/docs>.
 
-```text
-POST   /api/session/dev
-GET    /api/session
-GET/POST /api/workspaces
-GET/POST /api/workspaces/{workspace_id}/members
-GET/POST /api/workspaces/{workspace_id}/projects
-POST   /api/projects/{project_id}/uploads
-POST   /api/uploads/{upload_id}/parts
-POST   /api/uploads/{upload_id}/complete
-GET/POST /api/projects/{project_id}/recordings
-GET    /api/recordings/{recording_id}
-DELETE /api/recordings/{recording_id}
-GET    /api/recordings/{recording_id}/channels
-GET    /api/recordings/{recording_id}/waveform
-GET    /api/recordings/{recording_id}/events
-GET/POST /api/recordings/{recording_id}/annotations
-PATCH/DELETE /api/annotations/{annotation_id}
-GET    /api/recordings/{recording_id}/bad-channels
-PUT    /api/recordings/{recording_id}/bad-channels/{channel_id}
-GET    /api/recordings/{recording_id}/qc
-GET/POST /api/recordings/{recording_id}/processing-runs
-GET/POST /api/recordings/{recording_id}/exports
-GET    /api/jobs/{job_id}
-POST   /api/jobs/{job_id}/cancel
-```
+This page covers the behavior the schema can't express. All routes are under
+`/api`.
 
-All nested and top-level lookups authorize workspace membership. Missing and
-unauthorized private resources return the same response. Mutation retries use
-`Idempotency-Key` where creation is not naturally idempotent (currently
-`POST /processing-runs`).
+## Authorization
 
-Annotation PATCH/DELETE and bad-channel PUT are optimistic-concurrency
-writes: the request body carries the client's last-known `revision`
-(0 for a bad-channel row that does not exist yet), and the server performs a
-single conditional `UPDATE ... WHERE revision = :revision` rather than a
-read-then-write check. A stale revision returns `409` with
-`error.code` `annotation_revision_conflict` or `bad_channel_revision_conflict`
-— never a silent overwrite. Clients recover by re-fetching current state
-(`GET .../annotations` or `GET .../bad-channels`) and deciding whether to
-reapply their change against the new revision.
+Every lookup, nested or top-level, checks workspace membership. A private
+resource you can't access returns the same `404 not_found` as one that
+doesn't exist, including when you're a member whose role lacks the
+capability (for example, a viewer trying to annotate). Existence can't be
+probed ([ADR 0005](adr/0005-authentication-authorization.md)).
 
-Jobs (`GET /jobs/{id}`) report `status` (`QUEUED`, `RUNNING`,
-`CANCEL_REQUESTED`, `SUCCEEDED`, `FAILED`, `CANCELLED`), `stage`, and
-`progress`. `POST /jobs/{id}/cancel` requests cancellation: a `QUEUED` job is
-cancelled immediately, a `RUNNING` job moves to `CANCEL_REQUESTED` and is
-finalized to `CANCELLED` by the executor at its next cooperative checkpoint.
-A successful `average_reference` processing run repoints the recording's
-`active_version_id` at the new derived `RecordingVersion` (the input version
-is never modified — see ADR 0002/0007 on version immutability); the derived
-version's lineage is visible via `parent_version_id` and through
-`GET /processing-runs`.
+## Errors
 
-Lists use `limit` and opaque `cursor` and return `items` plus `next_cursor`.
-Errors use a stable shape:
+Every error uses one envelope:
 
 ```json
-{"error":{"code":"missing_companion","message":"The BrainVision header references subject01.eeg, but that file was not included.","correlation_id":"...","details":{}}}
+{"error": {"code": "missing_companion", "message": "The BrainVision header references subject01.eeg, but that file was not included.", "correlation_id": "...", "details": {}}}
 ```
 
-`details` contains only safe structured correction hints. Internal exceptions and
-storage paths never appear.
+`code` is stable and meant for branching; `details` holds only safe
+correction hints. Internal exceptions and storage paths never appear;
+unexpected failures are logged server-side under the correlation ID.
+
+## Concurrency and retries
+
+- **Optimistic concurrency.** Annotation `PATCH`/`DELETE` and bad-channel
+  `PUT` send the client's last-seen `revision` (0 for a bad-channel row that
+  doesn't exist yet). The server applies a single conditional
+  `UPDATE ... WHERE revision = :revision`; a stale revision returns `409`
+  (`annotation_revision_conflict` or `bad_channel_revision_conflict`), never a
+  silent overwrite. Clients re-fetch and decide whether to reapply.
+- **Upload completion** is a single conditional transition; completing an
+  upload that's already completed or aborted returns `409 upload_not_open`.
+- **Idempotency-Key.** `POST /recordings/{id}/processing-runs` accepts an
+  `Idempotency-Key` header so retries don't start duplicate runs.
+
+## Jobs
+
+Ingestion, processing, and deletion run as jobs. `GET /jobs/{id}` reports
+`status` (`QUEUED`, `RUNNING`, `CANCEL_REQUESTED`, `SUCCEEDED`, `FAILED`,
+`CANCELLED`), `stage`, and `progress`. `POST /jobs/{id}/cancel` cancels a
+`QUEUED` job immediately; a `RUNNING` job moves to `CANCEL_REQUESTED` and is
+finalized at its next cooperative checkpoint.
+
+A successful processing run repoints the recording's `active_version_id` at
+the new derived version. The input version is never modified; each run in
+`GET /recordings/{id}/processing-runs` records its `input_version_id` and
+`output_version_id`.
+
+## Pagination
+
+Recording and annotation lists take `limit` and an opaque `cursor` and return
+`items` plus `next_cursor` (`null` on the last page).
 
 ## Waveform
 
-Inputs are `version_id`, `start_seconds`, `duration_seconds`, repeated `channel_id`,
-and `pixel_width`. Bounds are half-open in sample space. The response includes the
-actual interval, level/bin size, resolution label, and per-channel `minimum`,
-`maximum`, `valid_count`, unit, and display scale. The server caps channels, pixels,
-points, duration, and response bytes and returns a corrective 422 if exceeded.
+`GET /recordings/{id}/waveform` takes `start_seconds`, `duration_seconds`,
+repeated `channel_index`, `pixel_width`, and optionally `version_id`. It
+returns one bounded window: the actual interval, pyramid level and bin size,
+and per-channel min/max envelopes with units. Channel count and pixel width
+are capped; exceeding a cap returns a corrective `422`.
 
-Immutable version responses carry ETag and private cache directives. Preview
-processing is an explicit request parameter set and a different cache key; no
-preview can create persisted data.
+Responses carry a strong ETag. Pin `version_id` (the recording's
+`active_version_id`) to get an immutable, cacheable response; a pin to a
+version that's no longer active returns `409 version_changed`. Unpinned
+requests are served `no-cache` and revalidate, because processing changes
+which version the recording URL resolves to.
 
 ## Compatibility
 
-Additive optional fields are nonbreaking. Removing/renaming fields, changing units
-or interval semantics, or changing role behavior is breaking. CI diffs OpenAPI and
-generated types. A future `/api/v2` is used only when coexistence is necessary.
-
+Adding optional fields is non-breaking. Removing or renaming fields, or
+changing units, interval semantics, or role behavior, is breaking.
