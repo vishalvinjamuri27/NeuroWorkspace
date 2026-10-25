@@ -18,6 +18,7 @@ from neuro_workspace.db.models import Base, Job, Workspace
 from neuro_workspace.db.session import create_engine_and_factory
 from neuro_workspace.domain import JobKind, JobState
 from neuro_workspace.services.jobs import (
+    STALE_DISPATCH_SECONDS,
     claim_job,
     find_undispatched_jobs,
     mark_dispatched,
@@ -275,5 +276,88 @@ def test_dispatch_sweep_redispatch_failure_does_not_mark_dispatched(factory) -> 
     try:
         job = session.get(Job, job_id)
         assert job.dispatched_at is None
+    finally:
+        session.close()
+
+
+def _aware(value: datetime) -> datetime:
+    # SQLite hands back naive datetimes for timezone-aware columns.
+    return value if value.tzinfo else value.replace(tzinfo=UTC)
+
+
+def _dispatched_job(factory, *, dispatched_ago: timedelta) -> str:
+    """A QUEUED job whose broker message was sent `dispatched_ago`."""
+
+    job_id = _make_job(factory)
+    session = factory()
+    try:
+        job = session.get(Job, job_id)
+        job.created_at = datetime.now(UTC) - dispatched_ago - timedelta(seconds=1)
+        job.dispatched_at = datetime.now(UTC) - dispatched_ago
+        session.commit()
+    finally:
+        session.close()
+    return job_id
+
+
+def test_dispatch_sweep_resends_a_job_whose_broker_message_was_lost(factory) -> None:
+    """Redis lost its queue after a successful dispatch: the job is QUEUED with
+    dispatched_at set, and no worker will ever claim it unless it is resent.
+    """
+
+    job_id = _dispatched_job(factory, dispatched_ago=timedelta(seconds=STALE_DISPATCH_SECONDS + 60))
+    redispatched: list[str] = []
+
+    result = run_dispatch_sweep(
+        factory=factory, redispatch=lambda job_id, kind: redispatched.append(job_id)
+    )
+
+    assert redispatched == [job_id]
+    assert result["stale_considered"] == 1
+    session = factory()
+    try:
+        # The clock restarts, so a merely backlogged job is resent at most
+        # once per interval, and the resend is safe to deliver twice.
+        job = session.get(Job, job_id)
+        assert _aware(job.dispatched_at) > datetime.now(UTC) - timedelta(seconds=60)
+        claimed, _ = claim_job(session, job_id)
+        assert claimed is True
+        duplicate_claimed, _ = claim_job(session, job_id)
+        assert duplicate_claimed is False
+    finally:
+        session.close()
+
+
+def test_dispatch_sweep_leaves_a_recently_dispatched_job_alone(factory) -> None:
+    _dispatched_job(factory, dispatched_ago=timedelta(seconds=60))
+    redispatched: list[str] = []
+
+    result = run_dispatch_sweep(
+        factory=factory, redispatch=lambda job_id, kind: redispatched.append(job_id)
+    )
+
+    assert redispatched == []
+    assert result["stale_considered"] == 0
+
+
+def test_stale_resend_during_broker_outage_keeps_the_old_dispatch_time(factory) -> None:
+    """A broker that is down (not empty) must not reset the clock, or the job
+    would wait a full interval after the broker comes back.
+    """
+
+    job_id = _dispatched_job(factory, dispatched_ago=timedelta(seconds=STALE_DISPATCH_SECONDS + 60))
+
+    def _failing_redispatch(job_id: str, kind: str) -> None:
+        raise ConnectionError("broker still down")
+
+    result = run_dispatch_sweep(factory=factory, redispatch=_failing_redispatch)
+
+    assert result["redispatched"] == 0
+    session = factory()
+    try:
+        job = session.get(Job, job_id)
+        assert _aware(job.dispatched_at) < datetime.now(UTC) - timedelta(
+            seconds=STALE_DISPATCH_SECONDS
+        )
     finally:
         session.close()

@@ -51,7 +51,7 @@ flowchart TB
     worker -- "claim_job() CAS,\nwrite RecordingVersion" --> pg
     worker -- "canonical Zarr\nread/write" --> s3
 
-    beat["worker-beat\n(single instance)"] -- "reclaim expired leases,\nredrive undispatched jobs" --> pg
+    beat["worker-beat\n(single instance)"] -- "reclaim expired leases,\nredrive undispatched\nor lost jobs" --> pg
     beat -- "redispatch" --> redis
 
     classDef store fill:#2b2b40,color:#fff,stroke:#8888aa;
@@ -192,6 +192,15 @@ partition), the request still succeeds — the `Job` row is the durable record
 of work, not the broker message. `worker-beat`'s outbox sweep
 (`find_undispatched_jobs`) picks up any `Job` left undispatched once the
 broker is reachable again.
+
+**Broker loses a delivered message**: if Redis restarts without its queue
+after a successful dispatch, the `Job` is still `QUEUED` but already marked
+dispatched. The same sweep (`find_stale_dispatched_jobs`) resends any job no
+worker has claimed within `STALE_DISPATCH_SECONDS` and restarts that clock,
+so a merely backlogged job gets at most one duplicate per interval, which
+`claim_job` then refuses. Tests:
+`test_job_concurrency.py::test_dispatch_sweep_resends_a_job_whose_broker_message_was_lost`
+and the broker-outage counterpart.
 
 ## Cursor pagination
 
