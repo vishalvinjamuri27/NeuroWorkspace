@@ -11,6 +11,17 @@ permissions:
 jobs:
   python:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.4-alpine
+        env:
+          POSTGRES_USER: neuroworkspace
+          POSTGRES_PASSWORD: neuroworkspace
+          POSTGRES_DB: neuroworkspace
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U neuroworkspace"
+          --health-interval 5s --health-timeout 3s --health-retries 20
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.3.2
@@ -24,7 +35,13 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run ruff check .
       - run: uv run mypy packages/signal-core/src apps/api/src apps/worker/src
-      - run: uv run pytest tests/python -m "not real_data"
+      - run: uv run pytest tests/python -m "not real_data and not postgres"
+      - name: Postgres-only tests (indexes, cross-connection races)
+        run: |
+          uv run alembic upgrade head
+          uv run pytest tests/python -m postgres
+        env:
+          DATABASE_URL: postgresql+psycopg://neuroworkspace:neuroworkspace@localhost:5432/neuroworkspace
       - run: uv run alembic upgrade head
         env:
           DATABASE_URL: sqlite:///./migration-ci.db

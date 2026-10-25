@@ -134,6 +134,7 @@ def test_sqlite_engine_construction_ignores_pool_kwargs_without_erroring() -> No
     assert engine is not None
 
 
+@pytest.mark.postgres
 @pytest.mark.parametrize(
     "table,index_name",
     [

@@ -60,6 +60,7 @@ markers = [
   "real_data: tests requiring checksum-pinned public datasets",
   "slow: generated performance or stress tests",
   "s3_integration: tests requiring a Docker-launched MinIO container",
+  "postgres: tests requiring a migrated Postgres DATABASE_URL",
 ]
 
 [tool.ruff]
