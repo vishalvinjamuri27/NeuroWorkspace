@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from celery import Celery
 from celery.signals import worker_process_init
 
@@ -36,11 +38,12 @@ engine = None
 factory = None
 object_store: ObjectStore | None = None
 signal_store: ZarrSignalStore | None = None
+_initialized_pid: int | None = None
 
 
 @worker_process_init.connect  # type: ignore[untyped-decorator]
 def _init_worker_process(**_kwargs: object) -> None:
-    global engine, factory, object_store, signal_store
+    global engine, factory, object_store, signal_store, _initialized_pid
     engine, factory = create_engine_and_factory(
         settings.database_url,
         pool_size=settings.db_pool_size,
@@ -49,13 +52,20 @@ def _init_worker_process(**_kwargs: object) -> None:
     )
     object_store = create_object_store(settings)
     signal_store = create_signal_store(settings)
+    _initialized_pid = os.getpid()
 
 
-# `celery worker --pool=solo` and eager/CLI paths (management scripts,
-# tests that import this module directly) never fire worker_process_init,
-# since there is no fork -- initialize inline for those, matching the
-# pre-fork behavior this module used to always have.
-_init_worker_process()
+def _ensure_worker_resources() -> None:
+    """Build this process's clients on first use if nothing has yet.
+
+    `--pool=solo` and other non-forking paths never fire worker_process_init.
+    Keying on the PID also means a forked child can never reuse clients built
+    in its parent, even if the signal were missed.
+    """
+
+    if _initialized_pid != os.getpid():
+        _init_worker_process()
+
 
 celery_app = Celery("neuroworkspace", broker=settings.redis_url, backend=settings.redis_url)
 celery_app.conf.update(
@@ -88,6 +98,7 @@ celery_app.conf.update(
     name="neuroworkspace.ingest", autoretry_for=(OSError,), retry_backoff=True, max_retries=3
 )
 def ingest(job_id: str) -> None:
+    _ensure_worker_resources()
     assert factory is not None and object_store is not None and signal_store is not None
     execute_ingestion_job(
         factory=factory,
@@ -103,6 +114,7 @@ def ingest(job_id: str) -> None:
     name="neuroworkspace.process", autoretry_for=(OSError,), retry_backoff=True, max_retries=3
 )
 def process(job_id: str) -> None:
+    _ensure_worker_resources()
     assert factory is not None and signal_store is not None
     execute_processing_job(
         factory=factory, signal_store=signal_store, settings=settings, job_id=job_id
@@ -113,6 +125,7 @@ def process(job_id: str) -> None:
     name="neuroworkspace.delete", autoretry_for=(OSError,), retry_backoff=True, max_retries=5
 )
 def delete(job_id: str) -> None:
+    _ensure_worker_resources()
     assert factory is not None and object_store is not None and signal_store is not None
     execute_deletion_job(
         factory=factory,
@@ -141,5 +154,6 @@ def _redispatch(job_id: str, kind: str) -> None:
 def reclaim_jobs() -> dict[str, int]:
     """Periodic outbox dispatcher + crash-recovery sweep. See services.jobs."""
 
+    _ensure_worker_resources()
     assert factory is not None
     return run_dispatch_sweep(factory=factory, redispatch=_redispatch)
