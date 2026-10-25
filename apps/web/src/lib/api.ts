@@ -109,6 +109,7 @@ export const api = {
   qc: (id: string) => request<QCResult>(`/recordings/${id}/qc`),
   waveform: (
     id: string,
+    versionId: string | null,
     start: number,
     duration: number,
     channelIndices: number[],
@@ -123,6 +124,10 @@ export const api = {
     channelIndices.forEach((index) =>
       query.append("channel_index", index.toString()),
     );
+    // Pinning the version keeps the browser's immutable HTTP cache and the
+    // de-dupe cache below from serving a pre-processing waveform once the
+    // recording's active version changes.
+    if (versionId) query.set("version_id", versionId);
     const path = `/recordings/${id}/waveform?${query}`;
     // A caller that passes a signal is rendering the primary, user-visible
     // viewport and needs this exact request to be cancellable when a newer
